@@ -2,7 +2,7 @@
 
 import Script from 'next/script';
 
-export function GA4() {
+export function GA4({ nonce }: { nonce?: string }) {
   const id = process.env.NEXT_PUBLIC_GA_ID;
   if (!id) return null;
   return (
@@ -10,11 +10,18 @@ export function GA4() {
       <Script
         src={`https://www.googletagmanager.com/gtag/js?id=${id}`}
         strategy="afterInteractive"
+        nonce={nonce}
       />
       <Script
         id="ga4-init"
         strategy="afterInteractive"
-      >{`window.dataLayer = window.dataLayer || [];function gtag(){dataLayer.push(arguments);}gtag('js', new Date());gtag('config', '${id}');`}</Script>
+        nonce={nonce}
+      >{`
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);} 
+        gtag('js', new Date());
+        gtag('config', '${id}');
+      `}</Script>
     </>
   );
 }

@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 
-import { ArrowLeft, Minus, Plus, X } from 'lucide-react';
+import { ArrowLeft, X } from 'lucide-react';
 
 import { Breadcrumbs } from '@/features/navigation/Breadcrumbs';
 import { formatUSD } from '@/lib/formatPrice';

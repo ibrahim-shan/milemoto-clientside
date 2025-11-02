@@ -7,10 +7,10 @@ import { usePathname, useRouter } from 'next/navigation';
 
 import { ShoppingCart, User as UserIcon } from 'lucide-react';
 
-import { useAuth } from '@/features/auth/useAuth';
 import { CartDrawer, type CartItem } from '@/features/cart/components/CartDrawer';
 import { DesktopSearchProvider, SearchButton } from '@/features/layout/desktop-search';
 import { MobileNav } from '@/features/layout/mobile-nav';
+import { useAuth } from '@/hooks/useAuth';
 
 function IconButton({
   label,
@@ -131,6 +131,11 @@ export function Header() {
   const [cartOpen, setCartOpen] = useState(false);
   const [items, setItems] = useState<CartItem[]>([]);
 
+  const handleLogout = async () => {
+    await logout(); // 1. Call the original logout function
+    router.push('/'); // 2. Redirect to the homepage
+  };
+
   useEffect(() => {
     setCartOpen(false);
   }, [pathname]);
@@ -240,7 +245,7 @@ export function Header() {
               <AccountMenu
                 variant={isHome ? 'home' : 'default'}
                 authed={isAuthenticated}
-                onLogout={logout}
+                onLogout={handleLogout}
               />
             </div>
           </div>

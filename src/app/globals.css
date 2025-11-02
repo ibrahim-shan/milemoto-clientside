@@ -216,3 +216,49 @@ body {
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* put this near the bottom of globals.css */
+@layer components {
+  .PhoneInput {
+    @apply border-border bg-background flex min-h-10 w-full rounded-md border;
+  }
+
+  /* left part: country/code */
+  .PhoneInputCountry {
+    @apply bg-card border-border text-foreground flex items-center gap-2 rounded-l-md border-r px-3 py-2 text-sm;
+    background-color: var(--card);
+  }
+
+  /* the number field */
+  .PhoneInputInput {
+    @apply text-foreground flex-1 bg-transparent px-3 py-2 text-sm outline-none;
+  }
+}
+
+@layer components {
+  /* container */
+  .otp-input-container {
+    @apply mx-auto mt-4 flex justify-between gap-2;
+    max-width: 21rem; /* instead of nonstandard max-w-84 */
+  }
+
+  /* base box */
+  .otp-input-box {
+    @apply border-border bg-background text-foreground inline-flex h-12 w-12 items-center justify-center rounded-xl border text-center text-xl transition-all duration-150 ease-in-out;
+    font-family:
+      var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+      'Courier New', monospace;
+  }
+
+  .otp-input-box:focus {
+    @apply border-primary ring-ring ring-2;
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+  }
+}
+
+/* put AFTER the @layer so it wins over inline styles from react-otp-input */
+.otp-input-container .otp-input-box {
+  width: 3rem !important; /* 48px */
+  height: 3rem !important; /* 48px */
+}

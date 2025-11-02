@@ -3,11 +3,17 @@ import { Manrope, Sora } from 'next/font/google';
 
 import './globals.css';
 
+import { headers } from 'next/headers';
+
+import { ToastContainer } from 'react-toastify';
+
 import { GA4 } from '@/features/analytics/ga4';
 import { Footer } from '@/features/layout/footer';
 import { Header } from '@/features/layout/header';
 import { RootProviders } from '@/providers/root-providers';
 import { SplashProvider } from '@/providers/splash-provider';
+
+import 'react-toastify/dist/ReactToastify.css';
 
 const sora = Sora({
   variable: '--font-sora',
@@ -32,11 +38,13 @@ export const metadata: Metadata = {
   metadataBase: new URL('https://milemoto.com'),
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const h = await headers();
+  const nonce = h.get('x-nonce') || undefined;
   return (
     <html
       lang="en"
@@ -45,11 +53,23 @@ export default function RootLayout({
     >
       <body className={`${sora.variable} ${manrope.variable} antialiased`}>
         <RootProviders>
+          <ToastContainer
+            position="top-right"
+            autoClose={3000}
+            hideProgressBar={false}
+            newestOnTop={false}
+            closeOnClick
+            rtl={false}
+            pauseOnFocusLoss
+            draggable
+            pauseOnHover
+            theme="light"
+          />
           <SplashProvider>
             <Header />
             {children}
             <Footer />
-            <GA4 />
+            <GA4 nonce={nonce} />
           </SplashProvider>
         </RootProviders>
       </body>
