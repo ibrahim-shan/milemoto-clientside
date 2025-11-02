@@ -1,8 +1,8 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type HTMLProps } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 
 import { CheckCircle2, Eye, EyeOff, Lock, Mail, ShieldCheck, User } from 'lucide-react';
 import { toast } from 'react-toastify';
@@ -38,15 +38,11 @@ export default function SignUpPage() {
   const [showPass, setShowPass] = useState(false);
   const [showPass2, setShowPass2] = useState(false);
 
-  const [rememberUI, setRememberUI] = useState(false);
+  const [rememberUI] = useState(false);
 
   const router = useRouter();
-  const search = useSearchParams();
 
   const pwdScore = useMemo(() => scorePassword(password), [password]);
-  const rawNext = search.get('next');
-  const nextUrl =
-    rawNext && rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/account';
 
   const strengthMap = [
     { label: 'Too short', bar: 'bg-error', chip: 'bg-error/10 text-error border-error/20' },
@@ -95,13 +91,11 @@ export default function SignUpPage() {
 
       toast.success('Account created! Please check your email to verify your account.');
       router.push('/signin');
-    } catch (err: any) {
-      if (err?.status === 409) {
-        toast.error('Email address is already registered.');
-      } else if (err?.status === 400) {
-        toast.error(err.details?.fieldErrors?.password?.[0] || 'Invalid data provided.');
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        toast.error(err.message || 'An error occurred.');
       } else {
-        toast.error('An unknown error occurred. Please try again.');
+        toast.error('An error occurred.');
       }
     } finally {
       setLoading(false);
@@ -250,8 +244,12 @@ export default function SignUpPage() {
                     name="phone"
                     international
                     defaultCountry="LB"
-                    countrySelectProps={{ 'aria-label': 'Country code' } as any}
-                    numberInputProps={{ 'aria-label': 'Phone number' } as any}
+                    countrySelectProps={
+                      { 'aria-label': 'Country code' } as HTMLProps<HTMLSelectElement>
+                    }
+                    numberInputProps={
+                      { 'aria-label': 'Phone number' } as HTMLProps<HTMLInputElement>
+                    }
                     value={phone}
                     onChange={setPhone}
                     limitMaxLength

@@ -1,14 +1,16 @@
 // src/components/feedback/Skeleton.tsx
 'use client';
 
+import type { ElementType } from 'react';
+
 import { cn } from '@/lib/utils';
 
 export function Skeleton({
   className = '',
-  as: Tag = 'div' as any,
+  as: Tag = 'div',
 }: {
   className?: string;
-  as?: any;
+  as?: ElementType;
 }) {
   return (
     <Tag

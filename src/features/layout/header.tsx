@@ -137,7 +137,10 @@ export function Header() {
   };
 
   useEffect(() => {
-    setCartOpen(false);
+    const id = requestAnimationFrame(() => {
+      setCartOpen(false);
+    });
+    return () => cancelAnimationFrame(id);
   }, [pathname]);
 
   const headerWrap = isHome

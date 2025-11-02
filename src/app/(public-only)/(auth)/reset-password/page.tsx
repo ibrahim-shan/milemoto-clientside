@@ -2,7 +2,7 @@
 'use client';
 
 import { Suspense, useMemo, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 
 import { Eye, EyeOff, Lock } from 'lucide-react';
 
@@ -46,8 +46,8 @@ function ResetPasswordForm() {
     try {
       await resetPassword({ token, password });
       setSuccess(true); // Show success message
-    } catch (err: any) {
-      setError(err?.message || 'Invalid or expired token. Please request a new link.');
+    } catch {
+      setError('Invalid or expired token. Please request a new link.');
     } finally {
       setLoading(false);
     }

@@ -10,6 +10,12 @@ import { applyLoginResult } from '@/lib/authStorage';
 import type { AuthOutputDto } from '@/types';
 import { Button } from '@/ui/Button';
 
+function parseErr(e: unknown): { code?: string; message: string } {
+  const code = (e as { code: string })?.code || (e as { error: string })?.error;
+  const message = (e as { message: string })?.message || 'Request failed';
+  return { code, message };
+}
+
 export function MfaPrompt({
   challengeId,
   store = 'session',
@@ -48,18 +54,23 @@ export function MfaPrompt({
       setErr(null);
       setLoading(true);
       try {
-        const res: AuthOutputDto = await verifyMfaLogin({ challengeId, code: codeToVerify, rememberDevice }); // <-- UPDATE THIS
+        const res: AuthOutputDto = await verifyMfaLogin({
+          challengeId,
+          code: codeToVerify,
+          rememberDevice,
+        }); // <-- UPDATE THIS
         applyLoginResult(res, store);
         onSuccess();
-      } catch (e: any) {
-        setErr(e?.message || 'Invalid code');
+      } catch (e: unknown) {
+        const { message } = parseErr(e);
+        setErr(message || 'Invalid code');
         // Clear code on error so user can re-try
         setCode('');
       } finally {
         setLoading(false);
       }
     },
-    [code, isBackup, challengeId, loading, onSuccess, store],
+    [code, isBackup, challengeId, loading, onSuccess, store, rememberDevice],
   );
   // --- END UPDATE ---
 
@@ -150,10 +161,20 @@ export function MfaPrompt({
       </div>
 
       <div className="mt-4 flex items-center justify-center gap-2">
-        <input id="remember-device" type="checkbox" checked={rememberDevice} onChange={e => setRememberDevice(e.target.checked)} disabled={loading} />
-        <label htmlFor="remember-device" className="text-sm text-muted-foreground">Remember this device for 30 days</label>
+        <input
+          id="remember-device"
+          type="checkbox"
+          checked={rememberDevice}
+          onChange={e => setRememberDevice(e.target.checked)}
+          disabled={loading}
+        />
+        <label
+          htmlFor="remember-device"
+          className="text-muted-foreground text-sm"
+        >
+          Remember this device for 30 days
+        </label>
       </div>
     </form>
   );
 }
-

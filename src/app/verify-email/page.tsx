@@ -1,15 +1,15 @@
 // src/app/verify-email/page.tsx
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 
 import { CheckCircle, XCircle } from 'lucide-react';
+import { toast } from 'react-toastify';
 
 import { verifyEmail } from '@/lib/auth';
 import { Button } from '@/ui/Button';
 
-// We must wrap the component in Suspense to use useSearchParams
 export default function VerifyEmailPage() {
   return (
     <Suspense fallback={<StatusDisplay status="loading" />}>
@@ -23,25 +23,30 @@ type Status = 'loading' | 'success' | 'error';
 function VerifyEmailContent() {
   const params = useSearchParams();
   const token = params.get('token');
-  const [status, setStatus] = useState<Status>('loading');
-  const [error, setError] = useState<string | null>(null);
+
+  const [initialStatus, initialError] = useMemo((): [Status, string | null] => {
+    if (!token) {
+      return ['error', 'No verification token found.'];
+    }
+    return ['loading', null];
+  }, [token]);
+
+  const [status, setStatus] = useState<Status>(initialStatus);
+  const [error, setError] = useState<string | null>(initialError);
 
   useEffect(() => {
-    if (!token) {
-      setStatus('error');
-      setError('No verification token found.');
-      return;
+    if (token) {
+      verifyEmail(token)
+        .then(() => {
+          setStatus('success');
+          toast.success('Email verified successfully.');
+        })
+        .catch(err => {
+          setStatus('error');
+          toast.error(err?.message || 'Invalid or expired token.');
+          setError(err?.message || 'Invalid or expired token.');
+        });
     }
-
-    // This effect runs once on page load
-    verifyEmail(token)
-      .then(() => {
-        setStatus('success');
-      })
-      .catch(err => {
-        setStatus('error');
-        setError(err?.message || 'Invalid or expired token.');
-      });
   }, [token]);
 
   return (
@@ -52,7 +57,6 @@ function VerifyEmailContent() {
   );
 }
 
-// A simple component to show the UI for each state
 function StatusDisplay({ status, error }: { status: Status; error?: string | null }) {
   let content = {
     title: 'Verifying...',

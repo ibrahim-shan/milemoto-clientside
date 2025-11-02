@@ -24,9 +24,7 @@ export default function ForgotPasswordPage() {
     try {
       await forgotPassword(email);
       setSuccess(true); // Show success message
-    } catch (err: any) {
-      // Note: We only show a generic error.
-      // We do NOT tell the user "email not found".
+    } catch {
       setError('An error occurred. Please try again.');
     } finally {
       setLoading(false);

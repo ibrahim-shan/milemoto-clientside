@@ -93,21 +93,27 @@ export default function SignInPage() {
         applyLoginResult(res, rememberVal ? 'local' : 'session');
       }
       // --- END OF CHANGE ---
-    } catch (err: any) {
-      // For v1: prefer err.code; legacy: err.error
-      if (err?.code === 'Email Not Verified' || err?.error === 'Email Not Verified') {
-        toast.error('Email not verified. Please check your inbox.');
-        setShowResend(true);
-      }
-      // --- END FIX ---
-      else if (err?.status === 401) {
-        toast.error('Invalid email or password.');
-      } else if (err?.status === 403) {
-        toast.error('Account disabled.');
-      } else if (err?.status === 429) {
-        toast.error('Too many attempts. Please try again later.');
+    } catch (err: unknown) {
+      // 1. Check if it's an Error (which your api.ts guarantees)
+      if (err instanceof Error) {
+        // 2. Cast to access your custom properties (status, code, error)
+        const apiError = err as Error & { code?: string; error?: string; status?: number };
+
+        if (apiError.code === 'Email Not Verified' || apiError.error === 'Email Not Verified') {
+          toast.error('Email not verified. Please check your inbox.');
+          setShowResend(true);
+        } else if (apiError.status === 401) {
+          toast.error('Invalid email or password.');
+        } else if (apiError.status === 403) {
+          toast.error('Account disabled.');
+        } else if (apiError.status === 429) {
+          toast.error('Too many attempts. Please try again later.');
+        } else {
+          toast.error(apiError.message || 'Sign in failed.');
+        }
       } else {
-        toast.error(err?.message || 'Sign in failed.');
+        // Fallback for any non-Error exceptions
+        toast.error('An unknown error occurred.');
       }
       setLoading(false);
     }
@@ -122,8 +128,13 @@ export default function SignInPage() {
       await resendVerificationEmail(emailForResend);
       toast.success('A new verification email has been sent.');
       setShowResend(false); // Hide the button after success
-    } catch (err: any) {
-      toast.error(err.message || 'An error occurred.');
+    } catch (err: unknown) {
+      // Check if it's an Error and use its message
+      if (err instanceof Error) {
+        toast.error(err.message || 'An error occurred.');
+      } else {
+        toast.error('An error occurred.');
+      }
     } finally {
       setLoading(false);
     }

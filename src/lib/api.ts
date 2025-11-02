@@ -2,12 +2,15 @@
 // Ensure API base points to /api/v1
 // Prefer same-origin relative API base for dev; proxy via Next.js rewrites
 import { setAccessToken } from './authStorage';
+
 const RAW_BASE = process.env.NEXT_PUBLIC_API_BASE?.replace(/\/+$/, '') || '/api';
 export const API_BASE = RAW_BASE.endsWith('/api')
   ? `${RAW_BASE}/v1`
   : RAW_BASE.includes('/api/v1')
     ? RAW_BASE
     : `${RAW_BASE}/v1`;
+
+type RequestInitWithTimeout = RequestInit & { timeout?: number };
 
 function mergeHeaders(h?: HeadersInit): Record<string, string> {
   if (!h) return {};
@@ -40,10 +43,14 @@ async function refreshAccessToken(): Promise<string | null> {
 
 const DEFAULT_TIMEOUT_MS = 15000;
 
-async function request<T>(path: string, init: RequestInit, triedRefresh = false): Promise<T> {
+async function request<T>(
+  path: string,
+  init: RequestInitWithTimeout,
+  triedRefresh = false,
+): Promise<T> {
   const headers = { 'Content-Type': 'application/json', ...mergeHeaders(init.headers) };
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), (init as any)?.timeout ?? DEFAULT_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), init.timeout ?? DEFAULT_TIMEOUT_MS);
   let res: Response;
   try {
     res = await fetch(`${API_BASE}${path}`, {
@@ -52,11 +59,13 @@ async function request<T>(path: string, init: RequestInit, triedRefresh = false)
       headers,
       signal: init.signal ?? controller.signal,
     });
-  } catch (e: any) {
-    if (e?.name === 'AbortError') {
-      const err = new Error('Request timed out');
-      (err as any).status = 0;
-      (err as any).code = 'Timeout';
+  } catch (e: unknown) {
+    // Check if e is an object with a 'name' property
+    if (e && typeof e === 'object' && 'name' in e && e.name === 'AbortError') {
+      // --- FIX 5 & 6 (Lines 62-63): Cast the new error to add properties safely ---
+      const err = new Error('Request timed out') as Error & { status?: number; code?: string };
+      err.status = 0;
+      err.code = 'Timeout';
       clearTimeout(timeout);
       throw err;
     }
@@ -94,12 +103,12 @@ async function request<T>(path: string, init: RequestInit, triedRefresh = false)
   return body as T;
 }
 
-export const post = <OkResponseDto>(path: string, body?: any, init?: RequestInit) =>
+export const post = <OkResponseDto>(path: string, body?: unknown, init?: RequestInitWithTimeout) =>
   request<OkResponseDto>(path, {
     method: 'POST',
     body: body ? JSON.stringify(body) : undefined,
     ...init,
   });
 
-export const get = <OkResponseDto>(path: string, init: RequestInit = {}) =>
+export const get = <OkResponseDto>(path: string, init: RequestInitWithTimeout = {}) =>
   request<OkResponseDto>(path, { method: 'GET', ...init });

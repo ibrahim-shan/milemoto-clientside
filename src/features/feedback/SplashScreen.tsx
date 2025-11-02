@@ -19,6 +19,7 @@ export function SplashScreen({
   useEffect(() => {
     // show only once (per tab or device)
     let timer: number | undefined;
+    let loadListener: (() => void) | undefined; // For the 'load' event listener
 
     const getStore = () => (storage === 'local' ? localStorage : sessionStorage);
 
@@ -28,8 +29,6 @@ export function SplashScreen({
       // storage unavailable → still show once
     }
 
-    setVisible(true);
-
     const runHide = () => {
       timer = window.setTimeout(() => {
         setVisible(false);
@@ -38,17 +37,22 @@ export function SplashScreen({
         } catch {}
       }, minDuration);
     };
+    const startTimer = setTimeout(() => {
+      setVisible(true); // Now this is async
 
-    if (document.readyState === 'complete') {
-      runHide(); // <-- do NOT call cleanup immediately
-    } else {
-      const onLoad = () => runHide();
-      window.addEventListener('load', onLoad, { once: true });
-      return () => window.removeEventListener('load', onLoad);
-    }
+      if (document.readyState === 'complete') {
+        runHide(); // <-- do NOT call cleanup immediately
+      } else {
+        loadListener = () => runHide(); // Assign to variable
+        window.addEventListener('load', loadListener, { once: true });
+      }
+    }, 0); // <-- 0ms timeout
 
     return () => {
+      // Cleanup all possible timers and listeners
       if (timer) window.clearTimeout(timer);
+      if (startTimer) clearTimeout(startTimer);
+      if (loadListener) window.removeEventListener('load', loadListener);
     };
   }, [minDuration, storage]);
 

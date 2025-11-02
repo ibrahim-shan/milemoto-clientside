@@ -11,6 +11,12 @@ type FormState =
   | { status: 'success' }
   | { status: 'error'; message: string };
 
+function parseErr(e: unknown): { code?: string; message: string } {
+  const code = (e as { code: string })?.code || (e as { error: string })?.error;
+  const message = (e as { message: string })?.message || 'Request failed';
+  return { code, message };
+}
+
 export function ContactForm() {
   const [state, setState] = useState<FormState>({ status: 'idle' });
 
@@ -43,8 +49,9 @@ export function ContactForm() {
       if (!res.ok) throw new Error('Request failed');
       setState({ status: 'success' });
       form.reset();
-    } catch (err) {
-      setState({ status: 'error', message: 'Could not send. Try again.' });
+    } catch (err: unknown) {
+      const { message } = parseErr(err);
+      setState({ status: 'error', message });
     }
   }
 

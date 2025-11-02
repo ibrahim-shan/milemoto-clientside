@@ -1,10 +1,13 @@
 // src/components/ui/Button.tsx
 'use client';
 
-import type { AnchorHTMLAttributes, ButtonHTMLAttributes, ReactNode } from 'react';
+import type {
+  AnchorHTMLAttributes,
+  ButtonHTMLAttributes,
+  DetailedHTMLProps,
+  ReactNode,
+} from 'react';
 import Link from 'next/link';
-
-// --- (No changes to types or utility functions) ---
 
 type CoreVariant =
   | 'solid'
@@ -15,7 +18,6 @@ type CoreVariant =
   | 'destructive'
   | 'success'
   | 'link';
-
 type Size = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 
 type CommonProps = {
@@ -38,6 +40,13 @@ type ButtonAsLink = CommonProps &
   Omit<AnchorHTMLAttributes<HTMLAnchorElement>, 'className'> & { href: string };
 
 export type ButtonProps = ButtonAsButton | ButtonAsLink;
+
+// Forward-only-safe props (type-level)
+type AnchorForwardProps = Omit<ButtonAsLink, keyof CommonProps | 'href' | 'onClick' | 'className'>;
+type NativeButtonForwardProps = Omit<
+  ButtonAsButton,
+  keyof CommonProps | 'type' | 'className' | 'disabled'
+>;
 
 function cx(...parts: Array<string | false | undefined>) {
   return parts.filter(Boolean).join(' ');
@@ -103,8 +112,6 @@ function variantClasses(variant: NonNullable<ButtonProps['variant']>) {
   }
 }
 
-// --- (End of unchanged code) ---
-
 export function Button(props: ButtonProps) {
   const {
     variant = 'solid',
@@ -121,22 +128,18 @@ export function Button(props: ButtonProps) {
 
   const classes = cx(baseClasses(size, fullWidth, icon), variantClasses(variant), userClassName);
 
-  // OPTIMIZATION: Define the button's content once.
   const content = (
     <>
       {isLoading && spinnerFor(size)}
 
-      {/* OPTIMIZATION: Hide icons when loading */}
       {!isLoading && !icon && leftIcon && (
         <span className="shrink-0 leading-none [&>svg]:block [&>svg]:align-middle">{leftIcon}</span>
       )}
 
-      {/* OPTIMIZATION: Don't render children if it's an icon-only button */}
       {!icon && (
         <span
           className={cx(
             'inline-flex items-center gap-2 truncate leading-none',
-            // Hide text when loading
             isLoading && 'opacity-0',
           )}
         >
@@ -144,7 +147,6 @@ export function Button(props: ButtonProps) {
         </span>
       )}
 
-      {/* OPTIMIZATION: Hide icons when loading */}
       {!isLoading && !icon && rightIcon && (
         <span className="shrink-0 leading-none [&>svg]:block [&>svg]:align-middle">
           {rightIcon}
@@ -155,23 +157,13 @@ export function Button(props: ButtonProps) {
     </>
   );
 
-  // LINK
+  // LINK branch
   if ('href' in props && props.href) {
-    const {
-      href,
-      onClick,
-      className: _c,
-      variant: _v,
-      size: _s,
-      fullWidth: _fw,
-      isLoading: _il,
-      loadingLabel: _ll,
-      leftIcon: _li,
-      rightIcon: _ri,
-      icon: _ic,
-      children: _ch,
-      ...rest
-    } = props as ButtonAsLink;
+    const { href, onClick, ...restRaw } = props as ButtonAsLink;
+
+    // Strictly-typed forward of only allowed anchor attributes
+    const anchorRest = restRaw as AnchorForwardProps &
+      DetailedHTMLProps<AnchorHTMLAttributes<HTMLAnchorElement>, HTMLAnchorElement>;
 
     const handleClick: React.MouseEventHandler<HTMLAnchorElement> = e => {
       if (isLoading) {
@@ -184,12 +176,12 @@ export function Button(props: ButtonProps) {
 
     return (
       <Link
-        {...rest}
+        {...anchorRest}
         href={href}
         onClick={handleClick}
         className={cx(classes, isLoading && 'pointer-events-none')}
         aria-busy={isLoading || undefined}
-        aria-disabled={isLoading || (rest as any)['aria-disabled'] ? true : undefined}
+        aria-disabled={isLoading ? true : undefined}
         data-loading={isLoading || undefined}
       >
         {content}
@@ -197,32 +189,21 @@ export function Button(props: ButtonProps) {
     );
   }
 
-  // BUTTON
-  const {
-    className: _cb,
-    variant: _vb,
-    size: _sb,
-    fullWidth: _fwb,
-    isLoading: _ilb,
-    loadingLabel: _llb,
-    leftIcon: _lib,
-    rightIcon: _rib,
-    icon: _icb,
-    children: _chb,
-    type,
-    ...restBtn
-  } = props as ButtonAsButton;
+  // BUTTON branch
+  const { type, ...btnRestRaw } = props as ButtonAsButton;
+  const buttonRest = btnRestRaw as NativeButtonForwardProps &
+    DetailedHTMLProps<ButtonHTMLAttributes<HTMLButtonElement>, HTMLButtonElement>;
 
   return (
     <button
-      {...restBtn}
+      {...buttonRest}
       type={type ?? 'button'}
       className={classes}
       data-variant={variant}
       data-size={size}
       data-loading={isLoading || undefined}
       aria-busy={isLoading || undefined}
-      disabled={isLoading || restBtn.disabled}
+      disabled={isLoading || buttonRest.disabled}
     >
       {content}
     </button>

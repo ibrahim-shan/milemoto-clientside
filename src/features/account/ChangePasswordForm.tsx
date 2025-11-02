@@ -109,15 +109,19 @@ export function ChangePasswordForm() {
       setOldPassword('');
       setNewPassword('');
       setConfirm('');
-    } catch (err: any) {
-      const code = err?.code || err?.error;
-      const status = err?.status;
-      if (code === 'InvalidPassword' ||
-          (typeof code === 'string' && code.toLowerCase().includes('invalid current password')) ||
-          status === 401) {
+    } catch (err: unknown) {
+      const code = (err as { code: string })?.code || (err as { error: string })?.error;
+      const status = (err as { status: number })?.status;
+      if (
+        code === 'InvalidPassword' ||
+        (typeof code === 'string' && code.toLowerCase().includes('invalid current password')) ||
+        status === 401
+      ) {
         toast.error('Current password is incorrect.');
       } else {
-        toast.error(err?.message || 'An error occurred. Please try again.');
+        toast.error(
+          (err as { message: string })?.message || 'An error occurred. Please try again.',
+        );
       }
     } finally {
       setLoading(false);

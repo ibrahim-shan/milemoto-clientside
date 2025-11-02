@@ -162,5 +162,3 @@ export function untrustCurrentDevice(): Promise<OkResponseDto> {
 }
 
 export type { UserDto, AuthOutputDto, MfaChallengeDto, OkResponseDto };
-
-

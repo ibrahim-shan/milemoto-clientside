@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import QRCode from 'react-qr-code';
@@ -25,7 +25,7 @@ export function SecuritySettings() {
   const { user } = useAuth();
   const router = useRouter();
   const [step, setStep] = useState<'idle' | 'show-qr' | 'verified'>('idle');
-  const [loadingEnable, setLoadingEnable] = useState(false);
+  const [loadingEnable] = useState(false);
   const [loadingVerify, setLoadingVerify] = useState(false);
   const [loadingDisable, setLoadingDisable] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -146,29 +146,41 @@ export function SecuritySettings() {
     return ahead ? `in ${out}` : `${out} ago`;
   }
 
-  function parseErr(e: any): { code?: string; message: string } {
-    const code = e?.code || e?.error;
-    const message = e?.message || 'Request failed';
+  function parseErr(e: unknown): { code?: string; message: string } {
+    const code = (e as { code: string })?.code || (e as { error: string })?.error;
+    const message = (e as { message: string })?.message || 'Request failed';
     return { code, message };
   }
+
+  const refreshDevices = useCallback(async () => {
+    setLoadingDevices(true);
+    try {
+      const res = (await listTrustedDevices()) as {
+        items: Array<{
+          id: string;
+          userAgent: string | null;
+          ip: string | null;
+          createdAt: string | null;
+          lastUsedAt: string | null;
+          expiresAt: string | null;
+          revokedAt: string | null;
+          current: boolean;
+        }>;
+      };
+      setDevices(res.items);
+    } catch (e: unknown) {
+      const { message } = parseErr(e);
+      toast.error(message || 'Failed to load trusted devices');
+    } finally {
+      setLoadingDevices(false);
+    }
+  }, []);
 
   useEffect(() => {
     setMfaOn(Boolean(user?.mfaEnabled));
     if (user?.mfaEnabled) setStep('verified');
     if (user) void refreshDevices();
-  }, [user]);
-
-  async function refreshDevices() {
-    setLoadingDevices(true);
-    try {
-      const res = await listTrustedDevices();
-      setDevices(res.items);
-    } catch (e: any) {
-      // ignore
-    } finally {
-      setLoadingDevices(false);
-    }
-  }
+  }, [user, refreshDevices]);
 
   async function begin() {
     setLoading(true);
@@ -179,8 +191,11 @@ export function SecuritySettings() {
       setSecret(data.secretBase32);
       setCode('');
       setStep('show-qr');
-    } catch (e: any) {
-      if (typeof e.message === 'string' && e.message.includes('MFA already enabled')) {
+    } catch (e: unknown) {
+      if (
+        typeof (e as { message: string }).message === 'string' &&
+        (e as { message: string }).message.includes('MFA already enabled')
+      ) {
         setMfaOn(true);
         setStep('verified');
       } else {
@@ -202,7 +217,9 @@ export function SecuritySettings() {
       toast.error('Verification is taking too long. Please try again.');
     }, 15000);
     try {
-      const res = await verifyMfaSetup({ challengeId, code: code.trim() });
+      const res = (await verifyMfaSetup({ challengeId, code: code.trim() })) as {
+        backupCodes: string[];
+      };
       setBackupCodes(res.backupCodes);
       setChallengeId('');
       setOtpauthUrl('');
@@ -213,8 +230,8 @@ export function SecuritySettings() {
       if (user) setUser({ ...user, mfaEnabled: true });
       toast.success('Two-factor enabled');
       setLoadingDisable(false);
-    } catch (e: any) {
-      const { code: c, message } = parseErr(e);
+    } catch (e: unknown) {
+      const { code: c, message } = parseErr(e as { code: string; message: string });
       if (c === 'InvalidCode') toast.error('Invalid 6-digit code');
       else toast.error(message || 'Failed to verify');
     } finally {
@@ -231,8 +248,8 @@ export function SecuritySettings() {
       const res = await regenBackupCodes();
       setBackupCodes(res.backupCodes);
       toast.success('Backup codes regenerated');
-    } catch (e: any) {
-      const { message } = parseErr(e);
+    } catch (e: unknown) {
+      const { message } = parseErr(e as { code: string; message: string });
       toast.error(message || 'Failed to regenerate codes');
     } finally {
       setLoading(false);
@@ -270,8 +287,8 @@ export function SecuritySettings() {
       if (user) setUser({ ...user, mfaEnabled: false });
       toast.success('Two-factor disabled');
       setLoadingVerify(false);
-    } catch (e: any) {
-      const { code: c, message } = parseErr(e);
+    } catch (e: unknown) {
+      const { code: c, message } = parseErr(e as { code: string; message: string });
       if (c === 'InvalidPassword') toast.error('Invalid password');
       else if (c === 'InvalidCode') toast.error('Invalid 2FA or backup code');
       else toast.error(message || 'Failed to disable 2FA');
@@ -286,8 +303,9 @@ export function SecuritySettings() {
       await untrustCurrentDevice();
       toast.success('This device is no longer trusted');
       await refreshDevices();
-    } catch (e: any) {
-      toast.error(e?.message || 'Failed to untrust device');
+    } catch (e: unknown) {
+      const { message } = parseErr(e as { code: string; message: string });
+      toast.error(message || 'Failed to untrust device');
     } finally {
       setLoading(false);
     }
@@ -299,8 +317,9 @@ export function SecuritySettings() {
       await revokeTrustedDevice(id);
       toast.success('Trusted device revoked');
       await refreshDevices();
-    } catch (e: any) {
-      toast.error(e?.message || 'Failed to revoke');
+    } catch (e: unknown) {
+      const { message } = parseErr(e as { code: string; message: string });
+      toast.error(message || 'Failed to revoke');
     } finally {
       setLoading(false);
     }
@@ -312,8 +331,9 @@ export function SecuritySettings() {
       await revokeAllTrustedDevices();
       toast.success('All trusted devices revoked');
       await refreshDevices();
-    } catch (e: any) {
-      toast.error(e?.message || 'Failed to revoke all');
+    } catch (e: unknown) {
+      const { message } = parseErr(e as { code: string; message: string });
+      toast.error(message || 'Failed to revoke all');
     } finally {
       setLoading(false);
     }
@@ -329,8 +349,9 @@ export function SecuritySettings() {
       clearAuth();
       toast.success('Logged out from all devices');
       router.replace('/signin');
-    } catch (e: any) {
-      toast.error(e?.message || 'Failed to logout all');
+    } catch (e: unknown) {
+      const { message } = parseErr(e as { code: string; message: string });
+      toast.error(message || 'Failed to logout all');
     } finally {
       setLoading(false);
     }
@@ -588,7 +609,7 @@ export function SecuritySettings() {
                 ))}
               </ul>
 
-          {/* Buttons positioned below the devices list on mobile */}
+              {/* Buttons positioned below the devices list on mobile */}
               <div className="mt-4 flex w-full flex-col gap-2 sm:flex-row sm:justify-end">
                 <Button
                   className="w-full sm:w-auto"
@@ -607,10 +628,10 @@ export function SecuritySettings() {
                   Revoke All
                 </Button>
                 {/* --- ADD THIS BUTTON --- */}
-                <Button 
-                  className="w-full sm:w-auto" 
-                  variant="outline" 
-                  onClick={logoutAllDevices} 
+                <Button
+                  className="w-full sm:w-auto"
+                  variant="outline"
+                  onClick={logoutAllDevices}
                   disabled={loading}
                 >
                   Logout All Devices
