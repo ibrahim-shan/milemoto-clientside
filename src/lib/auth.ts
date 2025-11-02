@@ -1,5 +1,5 @@
 // src/lib/auth.ts
-import { post } from './api';
+import { get, post } from './api';
 import { getAccessToken } from './authStorage';
 
 import type {
@@ -106,6 +106,12 @@ export function verifyEmail(token: string): Promise<OkResponseDto> {
 
 export function resendVerificationEmail(email: string): Promise<OkResponseDto> {
   return post<OkResponseDto>(`${AUTH}/verify-email/resend`, { email });
+}
+
+export function getMe(): Promise<UserDto> {
+  return get<UserDto>(`${AUTH}/me`, {
+    headers: authz(), // authz() attaches the Bearer token
+  });
 }
 
 export type { UserDto, AuthOutputDto, MfaChallengeDto, OkResponseDto };
