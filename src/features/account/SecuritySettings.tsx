@@ -1,13 +1,23 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 import QRCode from 'react-qr-code';
 import { toast } from 'react-toastify';
-import { useRouter } from 'next/navigation';
 
 import { useAuth } from '@/hooks/useAuth';
-import { disableMfa, listTrustedDevices, logoutAll, regenBackupCodes, revokeAllTrustedDevices, revokeTrustedDevice, startMfaSetup, untrustCurrentDevice, verifyMfaSetup } from '@/lib/auth';
+import {
+  disableMfa,
+  listTrustedDevices,
+  logoutAll,
+  regenBackupCodes,
+  revokeAllTrustedDevices,
+  revokeTrustedDevice,
+  startMfaSetup,
+  untrustCurrentDevice,
+  verifyMfaSetup,
+} from '@/lib/auth';
 import { setUser } from '@/lib/authStorage';
 import { Button } from '@/ui/Button';
 
@@ -16,9 +26,9 @@ export function SecuritySettings() {
   const router = useRouter();
   const [step, setStep] = useState<'idle' | 'show-qr' | 'verified'>('idle');
   const [loadingEnable, setLoadingEnable] = useState(false);
-    const [loadingVerify, setLoadingVerify] = useState(false);
-     const [loadingDisable, setLoadingDisable] = useState(false);
-      const [loading, setLoading] = useState(false);
+  const [loadingVerify, setLoadingVerify] = useState(false);
+  const [loadingDisable, setLoadingDisable] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [mfaOn, setMfaOn] = useState<boolean>(Boolean(user?.mfaEnabled));
 
   const [challengeId, setChallengeId] = useState('');
@@ -184,11 +194,12 @@ export function SecuritySettings() {
 
   async function verify(e?: React.FormEvent) {
     e?.preventDefault();
-    setLoadingVerify(true);    // Safety timeout so UI never stays stuck if network hangs
+    setLoadingDisable(true);
     let timedOut = false;
     const t = setTimeout(() => {
       timedOut = true;
-      setLoadingVerify(false);     toast.error('Verification is taking too long. Please try again.');
+      setLoadingDisable(false);
+      toast.error('Verification is taking too long. Please try again.');
     }, 15000);
     try {
       const res = await verifyMfaSetup({ challengeId, code: code.trim() });
@@ -201,12 +212,16 @@ export function SecuritySettings() {
       setMfaOn(true);
       if (user) setUser({ ...user, mfaEnabled: true });
       toast.success('Two-factor enabled');
+      setLoadingDisable(false);
     } catch (e: any) {
       const { code: c, message } = parseErr(e);
       if (c === 'InvalidCode') toast.error('Invalid 6-digit code');
       else toast.error(message || 'Failed to verify');
     } finally {
-      if (!timedOut) { clearTimeout(t); setLoadingVerify(false); }
+      if (!timedOut) {
+        clearTimeout(t);
+        setLoadingVerify(false);
+      }
     }
   }
 
@@ -244,12 +259,7 @@ export function SecuritySettings() {
   }
 
   async function disable() {
-    setLoadingVerify(true);    // Safety timeout so UI never stays stuck if network hangs
-    let timedOut = false;
-    const t = setTimeout(() => {
-      timedOut = true;
-      setLoadingDisable(false);     toast.error('Disabling is taking too long. Please try again.');
-    }, 15000);
+    setLoadingDisable(true); // <-- FIX: Use correct state setter
     try {
       await disableMfa({ password: pwd, code: finalCode.trim() });
       setStep('idle');
@@ -259,13 +269,14 @@ export function SecuritySettings() {
       setMfaOn(false);
       if (user) setUser({ ...user, mfaEnabled: false });
       toast.success('Two-factor disabled');
+      setLoadingVerify(false);
     } catch (e: any) {
       const { code: c, message } = parseErr(e);
       if (c === 'InvalidPassword') toast.error('Invalid password');
       else if (c === 'InvalidCode') toast.error('Invalid 2FA or backup code');
       else toast.error(message || 'Failed to disable 2FA');
     } finally {
-      if (!timedOut) { clearTimeout(t); setLoadingVerify(false); }
+      setLoadingDisable(false); // <-- FIX: Use correct state setter
     }
   }
 
@@ -309,21 +320,21 @@ export function SecuritySettings() {
   }
 
   async function logoutAllDevices() {
-  setLoading(true);
-  
-  try {
-    await logoutAll();
-    // Clear local tokens/user and redirect to sign in
-    const { clearAuth } = await import('@/lib/authStorage');
-    clearAuth();
-    toast.success('Logged out from all devices');
-    router.replace('/signin');
-  } catch (e: any) {
-    toast.error(e?.message || 'Failed to logout all');
-  } finally {
-    setLoading(false);
+    setLoading(true);
+
+    try {
+      await logoutAll();
+      // Clear local tokens/user and redirect to sign in
+      const { clearAuth } = await import('@/lib/authStorage');
+      clearAuth();
+      toast.success('Logged out from all devices');
+      router.replace('/signin');
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to logout all');
+    } finally {
+      setLoading(false);
+    }
   }
-}
 
   return (
     <section id="security">
@@ -347,7 +358,7 @@ export function SecuritySettings() {
             </Button>
           </div>
         </div>
-    )}
+      )}
 
       {!mfaOn && step === 'show-qr' && (
         <div className="grid gap-6 rounded-xl border p-6 md:grid-cols-[220px_1fr]">
@@ -386,9 +397,10 @@ export function SecuritySettings() {
               <div className="mt-3 flex gap-3">
                 <Button
                   type="submit"
-                  disabled={loadingVerify || code.length !== 6}
+                  isLoading={loadingVerify}
+                  disabled={code.length !== 6}
                 >
-                  {loading ? 'Verifying…' : 'Verify & Enable'}
+                  {loadingVerify ? 'Verifying…' : 'Verify & Enable'}
                 </Button>
                 <Button
                   className="w-full sm:w-auto"
@@ -442,12 +454,12 @@ export function SecuritySettings() {
 
       {mfaOn && (
         <div className="mt-6 rounded-xl border p-6">
-            <div>
-          <h3 className="text-lg font-medium">Turn Off Two-Factor Authentication</h3>
-          <p className="text-muted-foreground mt-1 text-sm">
-            To disable 2FA, enter your account password and a valid code from your authenticator app
-            or a backup code.
-          </p>
+          <div>
+            <h3 className="text-lg font-medium">Turn Off Two-Factor Authentication</h3>
+            <p className="text-muted-foreground mt-1 text-sm">
+              To disable 2FA, enter your account password and a valid code from your authenticator
+              app or a backup code.
+            </p>
           </div>
           <div className="mt-4 grid max-w-sm gap-3">
             <label className="text-muted-foreground mb-1.5 block text-sm font-medium">
@@ -478,9 +490,10 @@ export function SecuritySettings() {
               <Button
                 variant="solid"
                 onClick={disable}
-                disabled={loadingDisable || !pwd || !finalCode.trim()}
+                isLoading={loadingDisable}
+                disabled={!pwd || !finalCode.trim()}
               >
-                {loading ? 'Disabling…' : 'Disable 2FA'}
+                {loadingDisable ? 'Disabling…' : 'Disable 2FA'}
               </Button>
             </div>
           </div>
@@ -491,7 +504,7 @@ export function SecuritySettings() {
       <div className="mt-6 rounded-xl border p-6">
         <div className="flex flex-col gap-3">
           <div>
-<h3 className="text-lg font-medium">Trusted Devices</h3>
+            <h3 className="text-lg font-medium">Trusted Devices</h3>
             <p className="text-muted-foreground mt-1 text-sm">
               Devices trusted to bypass 2FA for 30 days.
             </p>
@@ -517,9 +530,16 @@ export function SecuritySettings() {
                 >
                   Revoke All
                 </Button>
-                <Button className="w-full sm:w-auto" variant="outline" onClick={logoutAllDevices} disabled={loading}>Logout All Devices</Button>
-                </div>
-                </div>
+                <Button
+                  className="w-full sm:w-auto"
+                  variant="outline"
+                  onClick={logoutAllDevices}
+                  disabled={loading}
+                >
+                  Logout All Devices
+                </Button>
+              </div>
+            </div>
           ) : (
             <>
               <ul className="mt-4 grid gap-3">
@@ -568,7 +588,7 @@ export function SecuritySettings() {
                 ))}
               </ul>
 
-              {/* Buttons positioned below the devices list on mobile */}
+          {/* Buttons positioned below the devices list on mobile */}
               <div className="mt-4 flex w-full flex-col gap-2 sm:flex-row sm:justify-end">
                 <Button
                   className="w-full sm:w-auto"
@@ -585,6 +605,15 @@ export function SecuritySettings() {
                   disabled={loadingDevices || activeDevices.length === 0}
                 >
                   Revoke All
+                </Button>
+                {/* --- ADD THIS BUTTON --- */}
+                <Button 
+                  className="w-full sm:w-auto" 
+                  variant="outline" 
+                  onClick={logoutAllDevices} 
+                  disabled={loading}
+                >
+                  Logout All Devices
                 </Button>
               </div>
             </>
