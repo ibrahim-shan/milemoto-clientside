@@ -32,22 +32,20 @@ export function setStoreMode(mode: StoreMode) {
 }
 
 function current(): Storage | null {
+  if (!isBrowser()) return null;
   return safeStorage(getStoreMode());
 }
 
 export function getAccessToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  const mode = getStoreMode();
-  const primary = mode === 'local' ? window.localStorage : window.sessionStorage;
-  const token = primary.getItem('mm:access');
-  if (token) return token;
-  const alt = mode === 'local' ? window.sessionStorage : window.localStorage;
-  const altToken = alt.getItem('mm:access');
-  if (altToken) {
-    setStoreMode(mode === 'local' ? 'session' : 'local');
-    return altToken;
-  }
-  return null;
+  const s = current();
+  return s ? s.getItem(TOKEN_KEY) : null;
+}
+
+export function setAccessToken(token: string | null) {
+  const s = current();
+  if (!s) return;
+  if (token) s.setItem(TOKEN_KEY, token);
+  else s.removeItem(TOKEN_KEY);
 }
 
 export function setAuth(
@@ -57,30 +55,12 @@ export function setAuth(
   applyLoginResult(payload, store);
 }
 
-export function setAccessToken(token: string | null) {
-  const s = current();
-  if (!s) return;
-  if (token) s.setItem(TOKEN_KEY, token);
-  else s.removeItem(TOKEN_KEY);
-}
 export function getUser<T = unknown>(): T | null {
-  if (typeof window === 'undefined') return null;
-  const mode = getStoreMode();
-  const primary = mode === 'local' ? window.localStorage : window.sessionStorage;
-  const raw = primary.getItem('mm:user');
-  if (raw)
+  const s = current();
+  const raw = s ? s.getItem(USER_KEY) : null;
+  if (raw) {
     try {
       return JSON.parse(raw) as T;
-    } catch {
-      return null;
-    }
-
-  const alt = mode === 'local' ? window.sessionStorage : window.localStorage;
-  const altRaw = alt.getItem('mm:user');
-  if (altRaw) {
-    setStoreMode(mode === 'local' ? 'session' : 'local');
-    try {
-      return JSON.parse(altRaw) as T;
     } catch {
       return null;
     }
@@ -116,16 +96,23 @@ export function applyLoginResult(
 
 export function clearAuth() {
   if (!isBrowser()) return;
-  for (const s of [window.localStorage, window.sessionStorage]) {
-    try {
-      s.removeItem(TOKEN_KEY);
-      s.removeItem(USER_KEY);
-    } catch {}
-  }
+  // Clear from BOTH just in case
+  try {
+    window.localStorage.removeItem(TOKEN_KEY);
+    window.localStorage.removeItem(USER_KEY);
+    window.sessionStorage.removeItem(TOKEN_KEY);
+    window.sessionStorage.removeItem(USER_KEY);
+  } catch {}
+
+  // Reset store mode to session
+  setStoreMode('session');
+
+  // Notify all tabs of logout
   window.dispatchEvent(
     new StorageEvent('storage', {
       key: 'mm:access',
       newValue: null,
+      storageArea: window.localStorage,
     }),
   );
 }

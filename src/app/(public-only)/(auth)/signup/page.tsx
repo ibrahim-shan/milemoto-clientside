@@ -34,10 +34,11 @@ export default function SignUpPage() {
   const [terms, setTerms] = useState(false);
   const [remember, setRemember] = useState(true); // Default to true
 
-  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
   const [showPass2, setShowPass2] = useState(false);
+
+  const [rememberUI, setRememberUI] = useState(false);
 
   const router = useRouter();
   const search = useSearchParams();
@@ -64,24 +65,22 @@ export default function SignUpPage() {
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setError(null);
 
     // 1. Validate Phone (from state) - This part was already correct!
     if (phone && !isValidPhoneNumber(phone)) {
-      setError('Please enter a valid phone number for the selected country.');
+      toast.error('Please enter a valid phone number for the selected country.');
       return;
     }
 
     // 2. Validate other fields (all from state)
-    if (!terms) return setError('You must accept the Terms.');
-    if (password.length < 8) return setError('Password must be at least 8 characters.');
-    if (password !== confirm) return setError('Passwords do not match.');
-    if (!fullName.trim()) return setError('Full name is required.');
-    if (!email.trim()) return setError('Email is required.');
+    if (!terms) return toast.error('You must accept the Terms.');
+    if (password.length < 8) return toast.error('Password must be at least 8 characters.');
+    if (password !== confirm) return toast.error('Passwords do not match.');
+    if (!fullName.trim()) return toast.error('Full name is required.');
+    if (!email.trim()) return toast.error('Email is required.');
 
     if (loading) return;
 
-    setError(null);
     setLoading(true);
     try {
       // 3. Send data *only* from state
@@ -98,11 +97,11 @@ export default function SignUpPage() {
       router.push('/signin');
     } catch (err: any) {
       if (err?.status === 409) {
-        setError('Email address is already registered.');
+        toast.error('Email address is already registered.');
       } else if (err?.status === 400) {
-        setError(err.details?.fieldErrors?.password?.[0] || 'Invalid data provided.');
+        toast.error(err.details?.fieldErrors?.password?.[0] || 'Invalid data provided.');
       } else {
-        setError('An unknown error occurred. Please try again.');
+        toast.error('An unknown error occurred. Please try again.');
       }
     } finally {
       setLoading(false);
@@ -251,6 +250,8 @@ export default function SignUpPage() {
                     name="phone"
                     international
                     defaultCountry="LB"
+                    countrySelectProps={{ 'aria-label': 'Country code' } as any}
+                    numberInputProps={{ 'aria-label': 'Phone number' } as any}
                     value={phone}
                     onChange={setPhone}
                     limitMaxLength
@@ -422,15 +423,6 @@ export default function SignUpPage() {
                 </span>
               </label>
 
-              {error && (
-                <p
-                  role="alert"
-                  className="text-error mt-2 text-sm"
-                >
-                  {error}
-                </p>
-              )}
-
               <Button
                 type="submit"
                 variant="solid"
@@ -457,7 +449,7 @@ export default function SignUpPage() {
               <div className="bg-border h-px w-full" />
             </div>
 
-            <GoogleButton />
+            <GoogleButton remember={rememberUI} />
           </div>
         </div>
       </div>

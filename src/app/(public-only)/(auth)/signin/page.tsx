@@ -333,7 +333,7 @@ export default function SignInPage() {
                   <div className="bg-border h-px w-full" />
                 </div>
 
-                <GoogleButton />
+                <GoogleButton remember={rememberUI} />
               </>
               // --- END OF ORIGINAL CONTENT ---
             )}

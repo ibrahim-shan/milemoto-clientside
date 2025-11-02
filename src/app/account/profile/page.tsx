@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 
 import { ChangePasswordForm } from '@/features/account/ChangePasswordForm';
 import { ProfileInfo } from '@/features/account/ProfileInfo';
+import { SecuritySettings } from '@/features/account/SecuritySettings';
 
 export const metadata: Metadata = {
   title: 'Profile Settings',
@@ -28,6 +29,11 @@ export default function ProfilePage() {
           Update your password. Choose a strong, unique password.
         </p>
         <ChangePasswordForm />
+      </section>
+
+      <hr className="border-border/60 my-6" />
+      <section className="mt-8">
+        <SecuritySettings />
       </section>
     </article>
   );

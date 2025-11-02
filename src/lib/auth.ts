@@ -1,4 +1,4 @@
-// src/lib/auth.ts
+﻿// src/lib/auth.ts
 import { get, post } from './api';
 import { getAccessToken } from './authStorage';
 
@@ -49,6 +49,7 @@ export function login(input: {
 export function verifyMfaLogin(input: {
   challengeId: string;
   code: string; // 6-digit TOTP or backup code
+  rememberDevice?: boolean;
 }): Promise<AuthOutputDto> {
   return post<AuthOutputDto>(`${AUTH}/mfa/login/verify`, input);
 }
@@ -71,6 +72,10 @@ export function regenBackupCodes(): Promise<MfaBackupCodesResponseDto> {
   });
 }
 
+export function disableMfa(input: { password: string; code: string }): Promise<OkResponseDto> {
+  return post<OkResponseDto>(`${AUTH}/mfa/disable`, input, { headers: authz() });
+}
+
 /* ---------------- Tokens & session ---------------- */
 export function refresh(): Promise<RefreshResponseDto> {
   return post<RefreshResponseDto>(`${AUTH}/refresh`, {});
@@ -78,6 +83,11 @@ export function refresh(): Promise<RefreshResponseDto> {
 
 export async function logout(): Promise<OkResponseDto> {
   return post<OkResponseDto>(`${AUTH}/logout`, {});
+}
+
+// Logout from all devices: revokes all sessions and trusted devices
+export async function logoutAll(): Promise<OkResponseDto> {
+  return post<OkResponseDto>(`${AUTH}/logout-all`, {}, { headers: authz() });
 }
 
 /* ---------------- Password Reset ---------------- */
@@ -114,4 +124,43 @@ export function getMe(): Promise<UserDto> {
   });
 }
 
+export function updateProfile(input: {
+  fullName: string;
+  phone?: string | null;
+}): Promise<UserDto> {
+  return post<UserDto>(`${AUTH}/me/update`, input, {
+    headers: authz(),
+  });
+}
+
+/* ---------------- Trusted devices ---------------- */
+export type TrustedDevice = {
+  id: string;
+  userAgent: string | null;
+  ip: string | null;
+  createdAt: string | null;
+  lastUsedAt: string | null;
+  expiresAt: string | null;
+  revokedAt: string | null;
+  current: boolean;
+};
+
+export function listTrustedDevices(): Promise<{ items: TrustedDevice[] }> {
+  return get<{ items: TrustedDevice[] }>(`${AUTH}/trusted-devices`, { headers: authz() });
+}
+
+export function revokeTrustedDevice(id: string): Promise<OkResponseDto> {
+  return post<OkResponseDto>(`${AUTH}/trusted-devices/revoke`, { id }, { headers: authz() });
+}
+
+export function revokeAllTrustedDevices(): Promise<OkResponseDto> {
+  return post<OkResponseDto>(`${AUTH}/trusted-devices/revoke-all`, {}, { headers: authz() });
+}
+
+export function untrustCurrentDevice(): Promise<OkResponseDto> {
+  return post<OkResponseDto>(`${AUTH}/trusted-devices/untrust-current`, {}, { headers: authz() });
+}
+
 export type { UserDto, AuthOutputDto, MfaChallengeDto, OkResponseDto };
+
+

@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { API_BASE } from '@/lib/api';
 import { Button } from '@/ui/Button';
 
-export default function GoogleButton() {
+export default function GoogleButton({ remember = false }: { remember?: boolean }) {
   const [loading, setLoading] = useState(false);
 
   function getNextFromURL(): string {
@@ -18,16 +18,10 @@ export default function GoogleButton() {
     }
   }
 
-  function readRememberCheckbox(): boolean {
-    const el = document.querySelector<HTMLInputElement>('input[name="remember"]');
-    return Boolean(el?.checked);
-  }
-
   function onClick() {
     if (loading) return;
     setLoading(true);
     const next = getNextFromURL();
-    const remember = readRememberCheckbox(); // false on signup page (no checkbox)
     const url = new URL(`${API_BASE}/auth/google/start`);
     url.searchParams.set('next', next);
     url.searchParams.set('remember', remember ? '1' : '0');

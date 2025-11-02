@@ -30,8 +30,8 @@ export function middleware(req: NextRequest) {
     `frame-ancestors 'none'`,
     `object-src 'none'`,
     `form-action ${self}`,
-    // Allow only our nonced inline scripts and GA domains
-    `script-src ${self} 'nonce-${nonce}' ${ga1} ${ga2}${scriptExtras ? ' ' + scriptExtras : ''}`,
+    // Allow Next.js inline runtime to hydrate (adds 'unsafe-inline')
+    `script-src ${self} 'nonce-${nonce}' 'unsafe-inline' ${ga1} ${ga2}${scriptExtras ? ' ' + scriptExtras : ''}`,
     // Keep strict; allow inline styles to avoid breaking common libs in client apps
     `style-src ${self} 'unsafe-inline'`,
     `img-src ${self} data: ${ga1} ${ga2}`,

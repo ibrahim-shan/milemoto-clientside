@@ -91,6 +91,10 @@ export function ChangePasswordForm() {
       toast.error('Password must be at least 8 characters.');
       return;
     }
+    if (newPassword === oldPassword) {
+      toast.error('New password must be different from current password.');
+      return;
+    }
     if (!match) {
       toast.error('New passwords do not match.');
       return;
@@ -106,8 +110,15 @@ export function ChangePasswordForm() {
       setNewPassword('');
       setConfirm('');
     } catch (err: any) {
-      // Handle backend errors (e.g., "Old password incorrect")
-      toast.error(err?.message || 'An error occurred. Please try again.');
+      const code = err?.code || err?.error;
+      const status = err?.status;
+      if (code === 'InvalidPassword' ||
+          (typeof code === 'string' && code.toLowerCase().includes('invalid current password')) ||
+          status === 401) {
+        toast.error('Current password is incorrect.');
+      } else {
+        toast.error(err?.message || 'An error occurred. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -141,7 +152,13 @@ export function ChangePasswordForm() {
           type="submit"
           variant="solid"
           isLoading={loading}
-          disabled={loading || !match || !oldPassword || newPassword.length < 8}
+          disabled={
+            loading ||
+            !match ||
+            !oldPassword ||
+            newPassword.length < 8 ||
+            newPassword === oldPassword
+          }
         >
           Change Password
         </Button>

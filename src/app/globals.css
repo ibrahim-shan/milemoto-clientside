@@ -158,6 +158,23 @@
     @apply border-border outline-ring/50;
   }
 }
+/* put this AFTER your current @layer base {...} block */
+@layer base {
+  button,
+  [role="button"],
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"] {
+    @apply cursor-pointer;
+  }
+
+  button:disabled,
+  [aria-disabled="true"],
+  input:disabled {
+    @apply cursor-not-allowed;
+  }
+}
+
 html {
   font-family:
     var(--font-sans),

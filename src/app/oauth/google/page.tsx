@@ -61,6 +61,7 @@ export default function GoogleOAuthHandler() {
       const userJson = b64urlToString(userB64);
       const user: UserDto = JSON.parse(userJson);
       applyLoginResult({ accessToken, user }, store);
+      window.location.href = next;
       router.replace(next);
     } catch {
       router.replace('/signin');

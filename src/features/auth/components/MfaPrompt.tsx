@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 // Import useCallback and useEffect
 import { useCallback, useEffect, useState } from 'react';
@@ -20,6 +20,7 @@ export function MfaPrompt({
   onSuccess: () => void;
 }) {
   const [code, setCode] = useState('');
+  const [rememberDevice, setRememberDevice] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [isBackup, setIsBackup] = useState(false);
@@ -47,7 +48,7 @@ export function MfaPrompt({
       setErr(null);
       setLoading(true);
       try {
-        const res: AuthOutputDto = await verifyMfaLogin({ challengeId, code: codeToVerify }); // <-- UPDATE THIS
+        const res: AuthOutputDto = await verifyMfaLogin({ challengeId, code: codeToVerify, rememberDevice }); // <-- UPDATE THIS
         applyLoginResult(res, store);
         onSuccess();
       } catch (e: any) {
@@ -121,12 +122,12 @@ export function MfaPrompt({
             type="submit"
             disabled={loading || code.trim().length < 4}
           >
-            {loading ? 'Verifying…' : 'Verify'}
+            {loading ? 'Verifyingâ€¦' : 'Verify'}
           </Button>
         ) : loading ? (
           // Show loading text for 6-digit auto-submit
           <div className="flex h-full items-center justify-center">
-            <p className="text-muted-foreground text-sm">Verifying…</p>
+            <p className="text-muted-foreground text-sm">Verifyingâ€¦</p>
           </div>
         ) : null}
       </div>
@@ -147,6 +148,12 @@ export function MfaPrompt({
           {isBackup ? 'Use authenticator app' : 'Use a backup code'}
         </Button>
       </div>
+
+      <div className="mt-4 flex items-center justify-center gap-2">
+        <input id="remember-device" type="checkbox" checked={rememberDevice} onChange={e => setRememberDevice(e.target.checked)} disabled={loading} />
+        <label htmlFor="remember-device" className="text-sm text-muted-foreground">Remember this device for 30 days</label>
+      </div>
     </form>
   );
 }
+
