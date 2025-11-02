@@ -21,7 +21,8 @@
         "name": "next"
       }
     ],
-    "paths": { "@/*": ["src/*"] }
+    "paths": { "@/*": ["src/*"],
+    "@milemoto/types": ["../packages/types/src"]}
   },
   "include": [
     "next-env.d.ts",

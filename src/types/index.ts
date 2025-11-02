@@ -1,1 +1,1 @@
-export type * from '../../../packages/types/src';
+export type * from '@milemoto/types';
