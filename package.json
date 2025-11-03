@@ -5,9 +5,15 @@
   "scripts": {
     "build": "next build",
     "dev": "next dev",
+    "format": "prettier --write \"src/**/*.ts\" \"src/**/*.tsx\"",
     "lint": "eslint",
+    "prepare": "husky",
     "start": "next start",
-    "format": "prettier --write \"src/**/*.ts\" \"src/**/*.tsx\""
+    "typecheck": "tsc --noEmit"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": "eslint --fix",
+    "*.{md,css,json}": "prettier --write"
   },
   "dependencies": {
     "@milemoto/types": "file:../packages/types",
@@ -37,6 +43,8 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.0.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.6",
     "prettier": "^3.6.2",
     "prettier-plugin-packagejson": "^2.5.19",
     "prettier-plugin-tailwindcss": "^0.6.14",
@@ -45,4 +53,3 @@
     "typescript": "^5"
   }
 }
-
