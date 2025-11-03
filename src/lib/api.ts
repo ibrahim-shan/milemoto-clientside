@@ -106,7 +106,7 @@ async function request<T>(
 export const post = <OkResponseDto>(path: string, body?: unknown, init?: RequestInitWithTimeout) =>
   request<OkResponseDto>(path, {
     method: 'POST',
-    body: body ? JSON.stringify(body) : undefined,
+    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
     ...init,
   });
 

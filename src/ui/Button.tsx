@@ -42,7 +42,6 @@ type ButtonAsLink = CommonProps &
 export type ButtonProps = ButtonAsButton | ButtonAsLink;
 
 // Forward-only-safe props (type-level)
-type AnchorForwardProps = Omit<ButtonAsLink, keyof CommonProps | 'href' | 'onClick' | 'className'>;
 type NativeButtonForwardProps = Omit<
   ButtonAsButton,
   keyof CommonProps | 'type' | 'className' | 'disabled'
@@ -159,11 +158,7 @@ export function Button(props: ButtonProps) {
 
   // LINK branch
   if ('href' in props && props.href) {
-    const { href, onClick, ...restRaw } = props as ButtonAsLink;
-
-    // Strictly-typed forward of only allowed anchor attributes
-    const anchorRest = restRaw as AnchorForwardProps &
-      DetailedHTMLProps<AnchorHTMLAttributes<HTMLAnchorElement>, HTMLAnchorElement>;
+    const { href, onClick } = props as ButtonAsLink;
 
     const handleClick: React.MouseEventHandler<HTMLAnchorElement> = e => {
       if (isLoading) {
@@ -176,7 +171,6 @@ export function Button(props: ButtonProps) {
 
     return (
       <Link
-        {...anchorRest}
         href={href}
         onClick={handleClick}
         className={cx(classes, isLoading && 'pointer-events-none')}

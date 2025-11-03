@@ -44,7 +44,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const h = await headers();
-  const nonce = h.get('x-nonce') || undefined;
+  const nonce = h.get('x-nonce');
   return (
     <html
       lang="en"
@@ -69,7 +69,7 @@ export default async function RootLayout({
             <Header />
             {children}
             <Footer />
-            <GA4 nonce={nonce} />
+            <GA4 {...(nonce ? { nonce } : {})} />
           </SplashProvider>
         </RootProviders>
       </body>

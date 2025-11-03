@@ -208,7 +208,7 @@ export function Header() {
 
           <div className="flex min-w-[320px] items-center justify-end gap-2 justify-self-end">
             <SearchButton
-              className={isHome ? 'text-white/90 hover:bg-white/10 hover:text-white' : undefined}
+              {...(isHome ? { className: 'text-white/90 hover:bg-white/10 hover:text-white' } : {})}
             />
             <span
               className={isHome ? 'h-5 w-px bg-white/30' : 'bg-border/70 h-5 w-px'}

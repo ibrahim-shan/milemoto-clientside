@@ -59,7 +59,7 @@ export function ProfileInfo() {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [fullName, setFullName] = useState(user?.fullName || '');
-  const [phone, setPhone] = useState<string | ''>(user?.phone || '');
+  const [phone, setPhone] = useState<string>(user?.phone || '');
 
   if (loading) {
     return <ProfileInfoSkeleton />;
@@ -178,8 +178,8 @@ export function ProfileInfo() {
               flags={flags}
               countrySelectProps={{ 'aria-label': 'Country code' } as HTMLProps<HTMLSelectElement>}
               numberInputProps={{ 'aria-label': 'Phone number' } as HTMLProps<HTMLInputElement>}
-              value={phone || undefined}
-              onChange={val => setPhone((val as string) || '')}
+              value={phone}
+              onChange={val => setPhone(val ?? '')}
               limitMaxLength
             />
           </div>

@@ -9,7 +9,6 @@ import { toast } from 'react-toastify';
 
 import 'react-phone-number-input/style.css';
 
-import { type E164Number } from 'libphonenumber-js';
 import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input';
 
 import GoogleButton from '@/features/auth/GoogleButton';
@@ -28,7 +27,7 @@ function scorePassword(pw: string) {
 export default function SignUpPage() {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState<E164Number | undefined>();
+  const [phone, setPhone] = useState<string>('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [terms, setTerms] = useState(false);
@@ -81,14 +80,12 @@ export default function SignUpPage() {
     try {
       // 3. Send data *only* from state
       await register({
-        // <-- 'res' is no longer needed
         fullName: fullName.trim(),
         email: email.trim().toLowerCase(),
-        phone: phone || null,
+        ...(phone ? { phone } : {}),
         password,
         remember,
       });
-
       toast.success('Account created! Please check your email to verify your account.');
       router.push('/signin');
     } catch (err: unknown) {
@@ -251,7 +248,7 @@ export default function SignUpPage() {
                       { 'aria-label': 'Phone number' } as HTMLProps<HTMLInputElement>
                     }
                     value={phone}
-                    onChange={setPhone}
+                    onChange={v => setPhone(v ?? '')}
                     limitMaxLength
                   />
                 </div>

@@ -73,9 +73,8 @@ function ProductCardInner({
           priority={imgPriority}
           loading={imgLoading}
           decoding="async"
-          placeholder={imgBlurDataURL ? 'blur' : undefined}
-          blurDataURL={imgBlurDataURL}
           className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+          {...(imgBlurDataURL ? { placeholder: 'blur' as const, blurDataURL: imgBlurDataURL } : {})}
         />
 
         {variant === 'overlay' && (

@@ -33,8 +33,8 @@ export function PromoTile({
         src={imageSrc}
         alt={imageAlt}
         fill
-        priority={priority}
         className="object-cover"
+        {...(priority ? { priority: true } : {})}
       />
       <div
         className="absolute inset-0 bg-black/60"
