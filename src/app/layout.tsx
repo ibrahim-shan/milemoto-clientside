@@ -45,6 +45,8 @@ export default async function RootLayout({
 }>) {
   const h = await headers();
   const nonce = h.get('x-nonce');
+  const pathname = h.get('x-next-pathname') || '';
+  const isAdminPage = pathname.startsWith('/admin');
   return (
     <html
       lang="en"
@@ -66,9 +68,9 @@ export default async function RootLayout({
             theme="light"
           />
           <SplashProvider>
-            <Header />
+            {isAdminPage && <Header />}
             {children}
-            <Footer />
+            {isAdminPage && <Footer />}
             <GA4 {...(nonce ? { nonce } : {})} />
           </SplashProvider>
         </RootProviders>

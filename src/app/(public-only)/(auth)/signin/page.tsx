@@ -319,6 +319,7 @@ export default function SignInPage() {
                     variant="solid"
                     className="mt-4"
                     size="md"
+                    justify="center"
                     fullWidth
                     disabled={loading}
                     aria-busy={loading}

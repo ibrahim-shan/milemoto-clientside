@@ -101,6 +101,7 @@ export default function ForgotPasswordPage() {
                 variant="solid"
                 className="mt-2"
                 size="md"
+                justify="center"
                 fullWidth
                 isLoading={loading}
               >

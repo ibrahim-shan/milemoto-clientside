@@ -191,6 +191,7 @@ export function PriceFilter() {
       {/* Apply → use Button (solid, full width, disabled on invalid) */}
       <Button
         variant="solid"
+        justify="center"
         size="md"
         fullWidth
         disabled={invalid}

@@ -22,12 +22,14 @@ export function CTABand() {
           <Button
             href="/shop"
             variant="solid"
+            justify="center"
           >
             Browse Bestsellers
           </Button>
           <Button
             href="/contact"
             variant="ghost"
+            justify="center"
           >
             Ask Fitment
           </Button>

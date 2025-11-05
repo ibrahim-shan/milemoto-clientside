@@ -191,6 +191,7 @@ export function CartDrawer({ open, items, onClose, onRemove, onCheckout }: Props
 
               <Button
                 variant="solid"
+                justify="center"
                 size="md"
                 fullWidth
                 onClick={onCheckout}

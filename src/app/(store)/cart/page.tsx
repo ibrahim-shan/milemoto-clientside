@@ -210,6 +210,7 @@ export default function CartPage() {
 
             <Button
               variant="solid"
+              justify="center"
               size="lg"
               fullWidth
             >

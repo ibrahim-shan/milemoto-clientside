@@ -54,6 +54,7 @@ export function Hero() {
               <Button
                 href="/shop"
                 variant="solid"
+                justify="center"
                 size="lg"
               >
                 Shop Parts
@@ -61,6 +62,7 @@ export function Hero() {
               <Button
                 href="/contact"
                 variant="secondary"
+                justify="center"
                 size="lg"
               >
                 Contact Support

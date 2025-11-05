@@ -41,6 +41,7 @@ export default function Home() {
                 href="/shop"
                 variant="solid"
                 size="lg"
+                justify="center"
               >
                 Shop Now
               </Button>
@@ -49,6 +50,7 @@ export default function Home() {
                 href="/shop?sort=bestsellers"
                 variant="outline"
                 size="lg"
+                justify="center"
                 className="border-white/40 text-white hover:bg-white/10"
               >
                 Explore Bestsellers

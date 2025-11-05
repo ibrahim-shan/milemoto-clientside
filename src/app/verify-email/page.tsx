@@ -83,6 +83,7 @@ function StatusDisplay({ status, error }: { status: Status; error?: string | nul
         <Button
           href="/signin"
           variant="solid"
+          justify="center"
         >
           Continue to Sign In
         </Button>

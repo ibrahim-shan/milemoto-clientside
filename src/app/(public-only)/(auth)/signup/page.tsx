@@ -422,6 +422,7 @@ export default function SignUpPage() {
                 type="submit"
                 variant="solid"
                 className="mt-4"
+                justify="center"
                 size="md"
                 fullWidth
               >

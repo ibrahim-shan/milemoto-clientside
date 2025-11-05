@@ -104,6 +104,7 @@ export default function OrderSummary({
       <Button
         type="button"
         variant="solid"
+        justify="center"
         size="md"
         fullWidth
         className="mt-6"

@@ -155,6 +155,7 @@ export function ChangePasswordForm() {
         <Button
           type="submit"
           variant="solid"
+          justify="center"
           isLoading={loading}
           disabled={
             loading ||

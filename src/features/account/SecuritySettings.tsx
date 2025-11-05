@@ -510,6 +510,7 @@ export function SecuritySettings() {
             <div className="mt-3 flex gap-3">
               <Button
                 variant="solid"
+                justify="center"
                 onClick={disable}
                 isLoading={loadingDisable}
                 disabled={!pwd || !finalCode.trim()}

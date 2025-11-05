@@ -203,6 +203,7 @@ export function ContactForm() {
           <Button
             type="submit"
             variant="solid"
+            justify="center"
             disabled={disabled}
           >
             {state.status === 'submitting'

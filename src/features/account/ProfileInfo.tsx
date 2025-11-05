@@ -206,6 +206,7 @@ export function ProfileInfo() {
           <>
             <Button
               variant="solid"
+              justify="center"
               onClick={onSave}
               disabled={saving || !isDirty}
             >

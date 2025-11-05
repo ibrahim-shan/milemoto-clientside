@@ -63,7 +63,7 @@ export function Breadcrumbs({ items, showBack = true, backHref, className }: Bre
               const isLast = idx === items.length - 1;
               const content = isLast ? (
                 <span
-                  className="text-foreground/90 max-w-[50vw] truncate font-medium sm:max-w-none"
+                  className="text-foreground/90 max-w-[50vw] font-medium sm:max-w-none"
                   aria-current="page"
                   title={item.label}
                 >
@@ -72,7 +72,7 @@ export function Breadcrumbs({ items, showBack = true, backHref, className }: Bre
               ) : (
                 <Link
                   href={item.href || '#'}
-                  className="text-foreground/70 hover:text-foreground max-w-[40vw] truncate font-medium transition-colors sm:max-w-none"
+                  className="text-foreground/70 hover:text-foreground max-w-[40vw] font-medium transition-colors sm:max-w-none"
                   title={item.label}
                 >
                   {item.label}

@@ -9,6 +9,8 @@ import type {
 } from 'react';
 import Link from 'next/link';
 
+import { cva, type VariantProps } from 'class-variance-authority';
+
 type CoreVariant =
   | 'solid'
   | 'secondary'
@@ -18,7 +20,7 @@ type CoreVariant =
   | 'destructive'
   | 'success'
   | 'link';
-type Size = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+type Size = 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'icon';
 
 type CommonProps = {
   variant?: CoreVariant;
@@ -31,6 +33,7 @@ type CommonProps = {
   icon?: boolean;
   className?: string;
   children?: ReactNode;
+  justify?: 'start' | 'between' | 'center';
 };
 
 type ButtonAsButton = CommonProps &
@@ -68,17 +71,20 @@ function baseClasses(size: Size, fullWidth?: boolean, icon?: boolean) {
     md: 'h-10 px-5 text-sm',
     lg: 'h-11 px-6 text-base',
     xl: 'h-12 px-8 text-base',
+    icon: 'h-10 w-10 p-0',
   } as const;
+
   const iconSizes = {
     xs: 'h-8 w-8 p-0',
     sm: 'h-9 w-9 p-0',
     md: 'h-10 w-10 p-0',
     lg: 'h-11 w-11 p-0',
     xl: 'h-12 w-12 p-0',
+    icon: 'h-10 w-10 p-0',
   } as const;
 
   return cx(
-    'inline-flex items-center justify-center gap-2 rounded-full font-semibold transition',
+    'flex items-center gap-2 rounded-full font-semibold transition',
     'focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
     'disabled:pointer-events-none disabled:opacity-60',
     'motion-safe:active:scale-[0.99]',
@@ -123,9 +129,16 @@ export function Button(props: ButtonProps) {
     icon,
     className: userClassName,
     children,
+    justify = 'start',
   } = props;
 
-  const classes = cx(baseClasses(size, fullWidth, icon), variantClasses(variant), userClassName);
+  const classes = cx(
+    baseClasses(size, fullWidth, icon),
+    variantClasses(variant),
+    justify === 'between' && 'justify-between w-full',
+    justify === 'center' && 'justify-center',
+    userClassName,
+  );
 
   const content = (
     <>
@@ -138,7 +151,8 @@ export function Button(props: ButtonProps) {
       {!icon && (
         <span
           className={cx(
-            'inline-flex items-center gap-2 truncate leading-none',
+            'inline-flex items-center gap-2 leading-none',
+            justify === 'between' && 'min-w-0 flex-1',
             isLoading && 'opacity-0',
           )}
         >
@@ -203,3 +217,33 @@ export function Button(props: ButtonProps) {
     </button>
   );
 }
+
+export const buttonVariants = cva(
+  'inline-flex items-center justify-center rounded-full font-semibold transition focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-60',
+  {
+    variants: {
+      variant: {
+        solid: 'bg-primary text-primary-foreground hover:bg-primary/90',
+        secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
+        outline: 'border border-border text-foreground hover:bg-muted/60',
+        ghost: 'text-foreground hover:bg-foreground/10',
+        subtle: 'bg-muted text-foreground hover:bg-muted/80',
+        destructive: 'bg-error text-white hover:bg-error/90',
+        success: 'bg-success text-white hover:bg-success/90',
+        link: 'bg-transparent text-primary underline-offset-4 hover:underline',
+      },
+      size: {
+        icon: 'h-9 w-9 p-0',
+        default: 'h-9 px-4 text-sm',
+        sm: 'h-8 px-3 text-xs',
+        lg: 'h-11 px-6 text-base',
+      },
+    },
+    defaultVariants: {
+      variant: 'solid',
+      size: 'default',
+    },
+  },
+);
+
+export type ButtonVariants = VariantProps<typeof buttonVariants>;

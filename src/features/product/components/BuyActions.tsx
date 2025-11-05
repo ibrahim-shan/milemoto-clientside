@@ -44,6 +44,7 @@ export function BuyActions({ stock, slug }: Props) {
         <Button
           variant="solid"
           size="lg"
+          justify="center"
           fullWidth
           className="sm:w-auto"
           onClick={buyNow}
@@ -53,6 +54,7 @@ export function BuyActions({ stock, slug }: Props) {
         <Button
           variant="outline"
           size="lg"
+          justify="center"
           fullWidth
           className="border-primary text-primary hover:bg-primary/10 sm:w-auto"
           onClick={addToCart}

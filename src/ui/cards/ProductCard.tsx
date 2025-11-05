@@ -83,6 +83,7 @@ function ProductCardInner({
               <Button
                 size="sm"
                 variant="solid"
+                justify="center"
                 onClick={handleAdd}
                 isLoading={adding}
                 loadingLabel="Adding"
@@ -101,6 +102,7 @@ function ProductCardInner({
                 href={href}
                 size="sm"
                 variant="solid"
+                justify="center"
                 aria-label={`View ${title}`}
                 leftIcon={
                   <ShoppingCart
@@ -151,6 +153,7 @@ function ProductCardInner({
             <Button
               variant="solid"
               size="sm"
+              justify="center"
               onClick={handleAdd}
               disabled={adding}
               aria-live="polite"

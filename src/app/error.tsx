@@ -22,6 +22,7 @@ export default function Error({ error, reset }: Props) {
           <Button
             variant="solid"
             size="md"
+            justify="center"
             onClick={reset}
           >
             Try again
@@ -30,6 +31,7 @@ export default function Error({ error, reset }: Props) {
             href="/"
             variant="outline"
             size="md"
+            justify="center"
           >
             Go home
           </Button>

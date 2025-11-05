@@ -66,6 +66,7 @@ function ResetPasswordForm() {
             <Button
               href="/signin"
               variant="solid"
+              justify="center"
               className="mt-6"
             >
               Back to Sign In

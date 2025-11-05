@@ -23,6 +23,7 @@ export default function GlobalError({
             <Button
               variant="solid"
               size="md"
+              justify="center"
               onClick={reset}
             >
               Reload
@@ -31,6 +32,7 @@ export default function GlobalError({
               href="/"
               variant="outline"
               size="md"
+              justify="center"
             >
               Go home
             </Button>
