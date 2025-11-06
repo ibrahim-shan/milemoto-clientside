@@ -112,3 +112,6 @@ export const post = <OkResponseDto>(path: string, body?: unknown, init?: Request
 
 export const get = <OkResponseDto>(path: string, init: RequestInitWithTimeout = {}) =>
   request<OkResponseDto>(path, { method: 'GET', ...init });
+
+export const del = <OkResponseDto>(path: string, init: RequestInitWithTimeout = {}) =>
+  request<OkResponseDto>(path, { method: 'DELETE', ...init });

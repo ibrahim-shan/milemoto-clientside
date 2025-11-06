@@ -1,3 +1,4 @@
+// src/features/admin/Settings/location-setup/CountriesTab.tsx
 'use client';
 
 import { useState } from 'react';
@@ -5,8 +6,12 @@ import { useState } from 'react';
 import { CountryDialog } from './LocationDialogs';
 import { LocationPagination } from './LocationPagination';
 import { LocationToolbar } from './LocationToolbar';
+import { Country } from '@milemoto/types';
 import { MoreHorizontal } from 'lucide-react';
 
+import { Skeleton } from '@/features/feedback/Skeleton'; // Import Skeleton for loading
+import { useDebounce } from '@/hooks/useDebounce';
+import { useDeleteCountry, useGetCountries } from '@/hooks/useLocationQueries';
 import { cn } from '@/lib/utils';
 import { Button } from '@/ui/Button';
 import {
@@ -17,23 +22,25 @@ import {
 } from '@/ui/dropdown-menu';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/ui/table';
 
-type Country = {
-  id: string;
-  name: string;
-  code: string;
-  status: 'active' | 'inactive';
-};
-
-// Dummy data for this component
-const DUMMY_COUNTRIES: Country[] = [
-  { id: '1', name: 'Lebanon', code: 'LB', status: 'active' as const },
-  { id: '2', name: 'United Arab Emirates', code: 'UAE', status: 'active' as const },
-];
-
 export function CountriesTab() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Country | null>(null);
 
+  // --- State for Pagination and Search ---
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300); // Use a debounce hook
+  const limit = 10;
+
+  // --- Data Fetching ---
+  const { data, isLoading, isError } = useGetCountries({
+    search: debouncedSearch,
+    page,
+    limit,
+  });
+  const deleteMutation = useDeleteCountry();
+
+  // --- Event Handlers ---
   const handleOpenAdd = () => {
     setEditingItem(null);
     setIsModalOpen(true);
@@ -44,12 +51,46 @@ export function CountriesTab() {
     setIsModalOpen(true);
   };
 
+  const handleDelete = (id: number) => {
+    if (window.confirm('Are you sure you want to delete this country?')) {
+      deleteMutation.mutate(id);
+    }
+  };
+
+  // --- Render Logic ---
+  const countries = data?.items || [];
+  const totalCount = data?.totalCount || 0;
+
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+  };
+
+  // Handle Export/Import
+  const handleExport = () => {
+    // Construct the full URL for the export endpoint
+    const url = `${
+      process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
+    }/api/v1/admin/locations/countries/export`;
+    // We can't use `fetch` as it doesn't trigger a download.
+    // We use a hidden link or window.open.
+    window.open(url, '_blank');
+  };
+
+  const handleImport = () => {
+    // This will require a new dialog. For now, we'll just log.
+    console.log('Import clicked. A file upload dialog should open.');
+  };
+
   return (
     <div className="space-y-4">
       <LocationToolbar
         onAdd={handleOpenAdd}
         addLabel="Add Country"
         searchPlaceholder="Search countries..."
+        searchValue={search}
+        onSearchChange={setSearch}
+        onImport={handleImport}
+        onExport={handleExport}
       />
       <Table>
         <TableHeader>
@@ -63,45 +104,99 @@ export function CountriesTab() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {DUMMY_COUNTRIES.map(item => (
-            <TableRow key={item.id}>
-              <TableCell className="font-medium">{item.name}</TableCell>
-              <TableCell>{item.code}</TableCell>
-              <TableCell>
-                <span
-                  className={cn(
-                    'rounded-full px-2.5 py-0.5 text-xs font-medium',
-                    item.status === 'active'
-                      ? 'bg-success/10 text-success'
-                      : 'bg-muted/60 text-muted-foreground',
-                  )}
-                >
-                  {item.status === 'active' ? 'Active' : 'Inactive'}
-                </span>
-              </TableCell>
-              <TableCell className="text-right">
-                <DropdownMenu>
-                  <DropdownMenuTrigger>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      justify="center"
-                    >
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => handleOpenEdit(item)}>Edit</DropdownMenuItem>
-                    <DropdownMenuItem>Delete</DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+          {isLoading ? (
+            // --- Loading State ---
+            Array.from({ length: 3 }).map((_, i) => (
+              <TableRow key={`skeleton-${i}`}>
+                <TableCell>
+                  <Skeleton className="h-5 w-32" />
+                </TableCell>
+                <TableCell>
+                  <Skeleton className="h-5 w-16" />
+                </TableCell>
+                <TableCell>
+                  <Skeleton className="h-5 w-20" />
+                </TableCell>
+                <TableCell>
+                  <Skeleton className="h-8 w-8" />
+                </TableCell>
+              </TableRow>
+            ))
+          ) : isError ? (
+            // --- Error State ---
+            <TableRow>
+              <TableCell
+                colSpan={4}
+                className="text-center text-red-500"
+              >
+                Failed to load countries.
               </TableCell>
             </TableRow>
-          ))}
+          ) : countries.length === 0 ? (
+            // --- Empty State ---
+            <TableRow>
+              <TableCell
+                colSpan={4}
+                className="text-muted-foreground text-center"
+              >
+                No countries found.
+              </TableCell>
+            </TableRow>
+          ) : (
+            // --- Success State ---
+            countries.map(item => (
+              <TableRow key={item.id}>
+                <TableCell className="font-medium">{item.name}</TableCell>
+                <TableCell>{item.code}</TableCell>
+                <TableCell>
+                  <span
+                    className={cn(
+                      'rounded-full px-2.5 py-0.5 text-xs font-medium',
+                      item.status === 'active'
+                        ? 'bg-success/10 text-success'
+                        : 'bg-muted/60 text-muted-foreground',
+                    )}
+                  >
+                    {item.status === 'active' ? 'Active' : 'Inactive'}
+                  </span>
+                </TableCell>
+                <TableCell className="text-right">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        justify="center"
+                      >
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => handleOpenEdit(item)}>Edit</DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => handleDelete(item.id)}
+                        disabled={deleteMutation.isPending}
+                        className="text-red-600 focus:text-red-600"
+                      >
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TableCell>
+              </TableRow>
+            ))
+          )}
         </TableBody>
       </Table>
-      <LocationPagination />
+
+      <LocationPagination
+        totalCount={totalCount}
+        currentPage={page}
+        pageSize={limit}
+        onPageChange={handlePageChange}
+      />
+
       <CountryDialog
         open={isModalOpen}
         onOpenChange={setIsModalOpen}

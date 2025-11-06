@@ -5,8 +5,13 @@ import { useState } from 'react';
 import { CityDialog } from './LocationDialogs';
 import { LocationPagination } from './LocationPagination';
 import { LocationToolbar } from './LocationToolbar';
+import { City } from '@milemoto/types'; // <-- IMPORT CITY TYPE
 import { MoreHorizontal } from 'lucide-react';
 
+import { Skeleton } from '@/features/feedback/Skeleton';
+import { useDebounce } from '@/hooks/useDebounce';
+import { useDeleteCity, useGetCities } from '@/hooks/useLocationQueries';
+// <-- IMPORT CITY HOOKS
 import { cn } from '@/lib/utils';
 import { Button } from '@/ui/Button';
 import {
@@ -17,23 +22,25 @@ import {
 } from '@/ui/dropdown-menu';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/ui/table';
 
-type City = {
-  id: string;
-  name: string;
-  state: string;
-  status: 'active' | 'inactive';
-};
-
-// Dummy data for this component
-const DUMMY_CITIES: City[] = [
-  { id: '1', name: 'Beirut', state: 'Beirut', status: 'active' as const },
-  { id: '2', name: 'Dubai', state: 'Dubai', status: 'active' as const },
-];
-
 export function CitiesTab() {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<City | null>(null);
+  const [editingItem, setEditingItem] = useState<City | null>(null); // <-- Use City type
 
+  // --- State for Pagination and Search ---
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
+  const limit = 10;
+
+  // --- Data Fetching ---
+  const { data, isLoading, isError } = useGetCities({
+    search: debouncedSearch,
+    page,
+    limit,
+  });
+  const deleteMutation = useDeleteCity();
+
+  // --- Event Handlers ---
   const handleOpenAdd = () => {
     setEditingItem(null);
     setIsModalOpen(true);
@@ -44,18 +51,49 @@ export function CitiesTab() {
     setIsModalOpen(true);
   };
 
+  const handleDelete = (id: number) => {
+    if (window.confirm('Are you sure you want to delete this city?')) {
+      deleteMutation.mutate(id);
+    }
+  };
+
+  // --- Render Logic ---
+  const cities = data?.items || [];
+  const totalCount = data?.totalCount || 0;
+
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+  };
+
+  // Handle Export/Import
+  const handleExport = () => {
+    const url = `${
+      process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
+    }/api/v1/admin/locations/cities/export`;
+    window.open(url, '_blank');
+  };
+
+  const handleImport = () => {
+    console.log('Import clicked. A file upload dialog should open.');
+  };
+
   return (
     <div className="space-y-4">
       <LocationToolbar
         onAdd={handleOpenAdd}
         addLabel="Add City"
-        searchPlaceholder="Search cities..."
+        searchPlaceholder="Search cities, states, or countries..."
+        searchValue={search}
+        onSearchChange={setSearch}
+        onImport={handleImport}
+        onExport={handleExport}
       />
       <Table>
         <TableHeader>
           <TableRow>
             <TableHead>City Name</TableHead>
             <TableHead>State</TableHead>
+            <TableHead>Country</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>
               <span className="sr-only">Actions</span>
@@ -63,45 +101,103 @@ export function CitiesTab() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {DUMMY_CITIES.map(item => (
-            <TableRow key={item.id}>
-              <TableCell className="font-medium">{item.name}</TableCell>
-              <TableCell>{item.state}</TableCell>
-              <TableCell>
-                <span
-                  className={cn(
-                    'rounded-full px-2.5 py-0.5 text-xs font-medium',
-                    item.status === 'active'
-                      ? 'bg-success/10 text-success'
-                      : 'bg-muted/60 text-muted-foreground',
-                  )}
-                >
-                  {item.status === 'active' ? 'Active' : 'Inactive'}
-                </span>
-              </TableCell>
-              <TableCell className="text-right">
-                <DropdownMenu>
-                  <DropdownMenuTrigger>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      justify="center"
-                    >
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => handleOpenEdit(item)}>Edit</DropdownMenuItem>
-                    <DropdownMenuItem>Delete</DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+          {isLoading ? (
+            // --- Loading State ---
+            Array.from({ length: 3 }).map((_, i) => (
+              <TableRow key={`skeleton-${i}`}>
+                <TableCell>
+                  <Skeleton className="h-5 w-32" />
+                </TableCell>
+                <TableCell>
+                  <Skeleton className="h-5 w-24" />
+                </TableCell>
+                <TableCell>
+                  <Skeleton className="h-5 w-24" />
+                </TableCell>
+                <TableCell>
+                  <Skeleton className="h-5 w-20" />
+                </TableCell>
+                <TableCell>
+                  <Skeleton className="h-8 w-8" />
+                </TableCell>
+              </TableRow>
+            ))
+          ) : isError ? (
+            // --- Error State ---
+            <TableRow>
+              <TableCell
+                colSpan={5}
+                className="text-center text-red-500"
+              >
+                Failed to load cities.
               </TableCell>
             </TableRow>
-          ))}
+          ) : cities.length === 0 ? (
+            // --- Empty State ---
+            <TableRow>
+              <TableCell
+                colSpan={5}
+                className="text-muted-foreground text-center"
+              >
+                No cities found.
+              </TableCell>
+            </TableRow>
+          ) : (
+            // --- Success State ---
+            cities.map(item => (
+              <TableRow key={item.id}>
+                <TableCell className="font-medium">{item.name}</TableCell>
+                <TableCell>{item.state_name}</TableCell> {/* <-- Use joined field */}
+                <TableCell>{item.country_name}</TableCell> {/* <-- Use joined field */}
+                <TableCell>
+                  <span
+                    className={cn(
+                      'rounded-full px-2.5 py-0.5 text-xs font-medium',
+                      item.status === 'active'
+                        ? 'bg-success/10 text-success'
+                        : 'bg-muted/60 text-muted-foreground',
+                    )}
+                  >
+                    {item.status === 'active' ? 'Active' : 'Inactive'}
+                  </span>
+                </TableCell>
+                <TableCell className="text-right">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        justify="center"
+                      >
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => handleOpenEdit(item)}>Edit</DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => handleDelete(item.id)}
+                        disabled={deleteMutation.isPending}
+                        className="text-red-600 focus:text-red-600"
+                      >
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TableCell>
+              </TableRow>
+            ))
+          )}
         </TableBody>
       </Table>
-      <LocationPagination />
+
+      <LocationPagination
+        totalCount={totalCount}
+        currentPage={page}
+        pageSize={limit}
+        onPageChange={handlePageChange}
+      />
+
       <CityDialog
         open={isModalOpen}
         onOpenChange={setIsModalOpen}

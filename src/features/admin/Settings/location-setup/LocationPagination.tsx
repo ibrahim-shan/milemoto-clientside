@@ -1,4 +1,7 @@
+// src/features/admin/Settings/location-setup/LocationPagination.tsx
 'use client';
+
+import React from 'react';
 
 import {
   Pagination,
@@ -10,56 +13,149 @@ import {
   PaginationPrevious,
 } from '@/ui/pagination';
 
-// <-- Import new component
+// Custom hook to generate pagination ranges
+function usePagination({
+  totalCount,
+  pageSize,
+  siblingCount = 1,
+  currentPage,
+}: {
+  totalCount: number;
+  pageSize: number;
+  siblingCount?: number;
+  currentPage: number;
+}) {
+  const totalPageCount = Math.ceil(totalCount / pageSize);
 
-export function LocationPagination() {
-  // In a real app, page, totalPages, and setPage would come from props/state
-  const currentPage = 1;
-  const totalPages = 5; // Example total
+  // Core logic to determine page numbers
+  const paginationRange = React.useMemo(() => {
+    const totalPageNumbers = siblingCount + 5;
+
+    if (totalPageNumbers >= totalPageCount) {
+      return Array.from({ length: totalPageCount }, (_, i) => i + 1);
+    }
+
+    const leftSiblingIndex = Math.max(currentPage - siblingCount, 1);
+    const rightSiblingIndex = Math.min(currentPage + siblingCount, totalPageCount);
+
+    const shouldShowLeftDots = leftSiblingIndex > 2;
+    const shouldShowRightDots = rightSiblingIndex < totalPageCount - 2;
+
+    const firstPageIndex = 1;
+    const lastPageIndex = totalPageCount;
+
+    if (!shouldShowLeftDots && shouldShowRightDots) {
+      const leftItemCount = 3 + 2 * siblingCount;
+      const leftRange = Array.from({ length: leftItemCount }, (_, i) => i + 1);
+      return [...leftRange, '...', totalPageCount];
+    }
+
+    if (shouldShowLeftDots && !shouldShowRightDots) {
+      const rightItemCount = 3 + 2 * siblingCount;
+      const rightRange = Array.from(
+        { length: rightItemCount },
+        (_, i) => totalPageCount - rightItemCount + i + 1,
+      );
+      return [firstPageIndex, '...', ...rightRange];
+    }
+
+    if (shouldShowLeftDots && shouldShowRightDots) {
+      const middleRange = Array.from(
+        { length: rightSiblingIndex - leftSiblingIndex + 1 },
+        (_, i) => leftSiblingIndex + i,
+      );
+      return [firstPageIndex, '...', ...middleRange, '...', lastPageIndex];
+    }
+    return [];
+  }, [totalPageCount, siblingCount, currentPage]);
+
+  return paginationRange;
+}
+
+type Props = {
+  totalCount: number;
+  currentPage: number;
+  pageSize: number;
+  onPageChange: (page: number) => void;
+};
+
+export function LocationPagination({ totalCount, currentPage, pageSize, onPageChange }: Props) {
+  const totalPages = Math.ceil(totalCount / pageSize);
+
+  const paginationRange = usePagination({
+    totalCount,
+    pageSize,
+    currentPage,
+  });
+
+  if (totalPages <= 1) {
+    return null; // Don't render pagination if only one page
+  }
+
+  const onNext = () => {
+    if (currentPage < totalPages) {
+      onPageChange(currentPage + 1);
+    }
+  };
+
+  const onPrevious = () => {
+    if (currentPage > 1) {
+      onPageChange(currentPage - 1);
+    }
+  };
 
   return (
     <div className="flex items-center justify-between pt-4">
-      {/* Left side: Page info */}
       <div className="text-muted-foreground text-sm">
-        Page {currentPage} of {totalPages}
+        Page {currentPage} of {totalPages} (Total {totalCount} items)
       </div>
 
-      {/* Right side: Pagination controls */}
       <Pagination className="mx-0 w-auto">
         <PaginationContent>
           <PaginationItem>
             <PaginationPrevious
               href="#"
-              // Add disabled state logic:
-              // disabled={currentPage === 1}
-              // className={currentPage === 1 ? 'pointer-events-none opacity-50' : undefined}
+              onClick={e => {
+                e.preventDefault();
+                onPrevious();
+              }}
+              className={currentPage === 1 ? 'pointer-events-none opacity-50' : undefined}
             />
           </PaginationItem>
 
-          {/* In a real app, you would map over page numbers here */}
-          <PaginationItem>
-            <PaginationLink
-              href="#"
-              isActive
-            >
-              1
-            </PaginationLink>
-          </PaginationItem>
-          <PaginationItem>
-            <PaginationLink href="#">2</PaginationLink>
-          </PaginationItem>
-          <PaginationItem>
-            <PaginationLink href="#">3</PaginationLink>
-          </PaginationItem>
-          <PaginationItem>
-            <PaginationEllipsis />
-          </PaginationItem>
+          {paginationRange.map((page, index) => {
+            if (page === '...') {
+              return (
+                <PaginationItem key={`dots-${index}`}>
+                  <PaginationEllipsis />
+                </PaginationItem>
+              );
+            }
+
+            return (
+              <PaginationItem key={page}>
+                <PaginationLink
+                  href="#"
+                  isActive={page === currentPage}
+                  onClick={e => {
+                    e.preventDefault();
+                    onPageChange(page as number);
+                  }}
+                >
+                  {page}
+                </PaginationLink>
+              </PaginationItem>
+            );
+          })}
+
           <PaginationItem>
             <PaginationNext
               href="#"
-              // Add disabled state logic:
-              // disabled={currentPage === totalPages}
-              // className={currentPage === totalPages ? 'pointer-events-none opacity-50' : undefined}
+              onClick={e => {
+                e.preventDefault();
+                onNext();
+              }}
+              className={currentPage === totalPages ? 'pointer-events-none opacity-50' : undefined}
             />
           </PaginationItem>
         </PaginationContent>
