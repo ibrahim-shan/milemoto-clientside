@@ -1,23 +1,23 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   City,
   Country,
+  CountryDropdownItem,
   CreateCity,
-  CreateCityDto,
   CreateCityOutputDto,
   CreateCountry,
   CreateCountryDto,
   CreateCountryOutputDto,
   CreateState,
-  CreateStateDto,
   CreateStateOutputDto,
   State,
+  StateDropdownItem,
 } from '@milemoto/types';
-import { useForm, type FieldValues } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 
 import {
   useCreateCity,
@@ -182,6 +182,7 @@ export function CountryDialog({ open, onOpenChange, item }: DialogProps<Country>
             type="submit"
             form="country-form"
             variant="solid"
+            disabled={isPending || !form.formState.isDirty}
             isLoading={isPending}
           >
             Save
@@ -199,9 +200,24 @@ export function StateDialog({ open, onOpenChange, item }: DialogProps<State>) {
   const updateMutation = useUpdateState();
   const isPending = createMutation.isPending || updateMutation.isPending;
   const { data: countriesData, isLoading: isLoadingCountries } = useGetAllCountries();
-  const countries = countriesData?.items || [];
+  const countries = useMemo<CountryDropdownItem[]>(
+    () => countriesData?.items ?? [],
+    [countriesData],
+  );
+  const augmentedCountries = useMemo<CountryDropdownItem[]>(() => {
+    if (!isEditMode || !item) return countries;
+    if (countries.some(country => country.id === item.country_id)) return countries;
+    return [
+      {
+        id: item.country_id,
+        name: item.country_name,
+        status: item.country_status,
+      },
+      ...countries,
+    ];
+  }, [countries, isEditMode, item]);
 
-  const form = useForm<CreateStateDto, FieldValues, CreateStateOutputDto>({
+  const form = useForm<CreateStateOutputDto>({
     resolver: zodResolver(CreateState),
     defaultValues: {
       name: '',
@@ -225,6 +241,23 @@ export function StateDialog({ open, onOpenChange, item }: DialogProps<State>) {
       });
     }
   }, [item, form]);
+
+  const watchedCountryId = useWatch({
+    control: form.control,
+    name: 'country_id',
+  });
+  const numericCountryId =
+    typeof watchedCountryId === 'number' && Number.isFinite(watchedCountryId)
+      ? watchedCountryId
+      : undefined;
+  const selectedFromActiveList = countries.some(country => country.id === numericCountryId);
+  const allowActiveState =
+    selectedFromActiveList ||
+    (isEditMode &&
+      item !== null &&
+      item.country_id === numericCountryId &&
+      item.country_status === 'active' &&
+      item.country_status_effective === 'active');
 
   const handleSubmit = (data: CreateStateOutputDto) => {
     if (isEditMode && item) {
@@ -277,9 +310,8 @@ export function StateDialog({ open, onOpenChange, item }: DialogProps<State>) {
                 <FormItem className="grid grid-cols-4 items-center gap-4">
                   <FormLabel className="text-right">Country</FormLabel>
                   <Select
-                    // --- THIS IS FIX #1 ---
-                    onValueChange={value => field.onChange(Number(value))}
-                    value={String(field.value ?? '')}
+                    onValueChange={value => field.onChange(value ? Number(value) : undefined)}
+                    value={field.value ? String(field.value) : ''}
                     disabled={isPending || isLoadingCountries}
                   >
                     <FormControl className="col-span-3">
@@ -288,14 +320,29 @@ export function StateDialog({ open, onOpenChange, item }: DialogProps<State>) {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {countries.map(country => (
+                      {augmentedCountries.length === 0 ? (
                         <SelectItem
-                          key={country.id}
-                          value={String(country.id)}
+                          value="__no-country"
+                          disabled
                         >
-                          {country.name}
+                          No active countries available
                         </SelectItem>
-                      ))}
+                      ) : (
+                        augmentedCountries.map(country => (
+                          <SelectItem
+                            key={country.id}
+                            value={String(country.id)}
+                          >
+                            {country.name}
+                            {isEditMode &&
+                            item &&
+                            country.id === item.country_id &&
+                            item.country_status_effective === 'inactive'
+                              ? ' (Inactive)'
+                              : ''}
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                   <FormMessage className="col-span-4" />
@@ -320,7 +367,12 @@ export function StateDialog({ open, onOpenChange, item }: DialogProps<State>) {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem
+                        value="active"
+                        disabled={!allowActiveState}
+                      >
+                        Active
+                      </SelectItem>
                       <SelectItem value="inactive">Inactive</SelectItem>
                     </SelectContent>
                   </Select>
@@ -342,6 +394,7 @@ export function StateDialog({ open, onOpenChange, item }: DialogProps<State>) {
             type="submit"
             form="state-form"
             variant="solid"
+            disabled={isPending || !form.formState.isDirty}
             isLoading={isPending}
           >
             Save
@@ -359,9 +412,22 @@ export function CityDialog({ open, onOpenChange, item }: DialogProps<City>) {
   const updateMutation = useUpdateCity();
   const isPending = createMutation.isPending || updateMutation.isPending;
   const { data: statesData, isLoading: isLoadingStates } = useGetAllStates();
-  const states = statesData?.items || [];
+  const states = useMemo<StateDropdownItem[]>(() => statesData?.items ?? [], [statesData]);
+  const augmentedStates = useMemo<StateDropdownItem[]>(() => {
+    if (!isEditMode || !item) return states;
+    if (states.some(state => state.id === item.state_id)) return states;
+    return [
+      {
+        id: item.state_id,
+        name: item.state_name,
+        status: item.state_status,
+        status_effective: item.state_status_effective,
+      },
+      ...states,
+    ];
+  }, [states, isEditMode, item]);
 
-  const form = useForm<CreateCityDto, FieldValues, CreateCityOutputDto>({
+  const form = useForm<CreateCityOutputDto>({
     resolver: zodResolver(CreateCity),
     defaultValues: {
       name: '',
@@ -380,11 +446,26 @@ export function CityDialog({ open, onOpenChange, item }: DialogProps<City>) {
     } else {
       form.reset({
         name: '',
-        state_id: undefined,
+        state_id: Number.NaN,
         status: 'active',
       });
     }
   }, [item, form]);
+  
+// eslint-disable-next-line react-hooks/incompatible-library
+  const watchedStateId = form.watch('state_id');
+  const numericStateId =
+    typeof watchedStateId === 'number' && Number.isFinite(watchedStateId)
+      ? watchedStateId
+      : undefined;
+  const selectedStateActive = states.some(state => state.id === numericStateId);
+  const allowActiveCity =
+    selectedStateActive ||
+    (isEditMode &&
+      item !== null &&
+      item.state_id === numericStateId &&
+      item.state_status_effective === 'active' &&
+      item.country_status_effective === 'active');
 
   const handleSubmit = (data: CreateCityOutputDto) => {
     if (isEditMode && item) {
@@ -436,9 +517,8 @@ export function CityDialog({ open, onOpenChange, item }: DialogProps<City>) {
                 <FormItem className="grid grid-cols-4 items-center gap-4">
                   <FormLabel className="text-right">State</FormLabel>
                   <Select
-                    // --- THIS IS FIX #2 ---
-                    onValueChange={value => field.onChange(Number(value))}
-                    value={String(field.value ?? '')}
+                    onValueChange={value => field.onChange(value ? Number(value) : undefined)}
+                    value={field.value ? String(field.value) : ''}
                     disabled={isPending || isLoadingStates}
                   >
                     <FormControl className="col-span-3">
@@ -447,14 +527,30 @@ export function CityDialog({ open, onOpenChange, item }: DialogProps<City>) {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {states.map(state => (
+                      {augmentedStates.length === 0 ? (
                         <SelectItem
-                          key={state.id}
-                          value={String(state.id)}
+                          value="__no-state"
+                          disabled
                         >
-                          {state.name}
+                          No active states available
                         </SelectItem>
-                      ))}
+                      ) : (
+                        augmentedStates.map(state => (
+                          <SelectItem
+                            key={state.id}
+                            value={String(state.id)}
+                          >
+                            {state.name}
+                            {isEditMode &&
+                            item &&
+                            state.id === item.state_id &&
+                            (item.state_status_effective !== 'active' ||
+                              item.country_status_effective !== 'active')
+                              ? ' (Inactive)'
+                              : ''}
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                   <FormMessage className="col-span-4" />
@@ -479,7 +575,12 @@ export function CityDialog({ open, onOpenChange, item }: DialogProps<City>) {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem
+                        value="active"
+                        disabled={!allowActiveCity}
+                      >
+                        Active
+                      </SelectItem>
                       <SelectItem value="inactive">Inactive</SelectItem>
                     </SelectContent>
                   </Select>
@@ -501,6 +602,7 @@ export function CityDialog({ open, onOpenChange, item }: DialogProps<City>) {
             type="submit"
             form="city-form"
             variant="solid"
+            disabled={isPending || !form.formState.isDirty}
             isLoading={isPending}
           >
             Save

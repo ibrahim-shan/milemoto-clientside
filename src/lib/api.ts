@@ -113,5 +113,12 @@ export const post = <OkResponseDto>(path: string, body?: unknown, init?: Request
 export const get = <OkResponseDto>(path: string, init: RequestInitWithTimeout = {}) =>
   request<OkResponseDto>(path, { method: 'GET', ...init });
 
+export const put = <OkResponseDto>(path: string, body?: unknown, init?: RequestInitWithTimeout) =>
+  request<OkResponseDto>(path, {
+    method: 'PUT',
+    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+    ...init,
+  });
+
 export const del = <OkResponseDto>(path: string, init: RequestInitWithTimeout = {}) =>
   request<OkResponseDto>(path, { method: 'DELETE', ...init });

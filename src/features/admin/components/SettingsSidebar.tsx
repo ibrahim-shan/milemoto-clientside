@@ -1,5 +1,6 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -22,7 +23,7 @@ import {
 import { cn } from '@/lib/utils';
 
 // 1. Define all your settings links
-const settingsNav = [
+const settingsNav: Array<{ href: string; label: string; icon: ReactNode }> = [
   {
     href: '/admin/settings/company',
     label: 'Company Details',

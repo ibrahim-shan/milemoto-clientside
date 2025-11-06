@@ -5,15 +5,12 @@ import './globals.css';
 
 import { headers } from 'next/headers';
 
-import { ToastContainer } from 'react-toastify';
-
 import { GA4 } from '@/features/analytics/ga4';
 import { Footer } from '@/features/layout/footer';
 import { Header } from '@/features/layout/header';
 import { RootProviders } from '@/providers/root-providers';
 import { SplashProvider } from '@/providers/splash-provider';
-
-import 'react-toastify/dist/ReactToastify.css';
+import { Toaster } from '@/ui/sonner';
 
 const sora = Sora({
   variable: '--font-sora',
@@ -55,17 +52,9 @@ export default async function RootLayout({
     >
       <body className={`${sora.variable} ${manrope.variable} antialiased`}>
         <RootProviders>
-          <ToastContainer
+          <Toaster
             position="top-right"
-            autoClose={3000}
-            hideProgressBar={false}
-            newestOnTop={false}
-            closeOnClick
-            rtl={false}
-            pauseOnFocusLoss
-            draggable
-            pauseOnHover
-            theme="light"
+            richColors
           />
           <SplashProvider>
             {isAdminPage && <Header />}

@@ -58,7 +58,7 @@ export function CitiesTab() {
   };
 
   // --- Render Logic ---
-  const cities = data?.items || [];
+  const cities: City[] = data?.items ?? [];
   const totalCount = data?.totalCount || 0;
 
   const handlePageChange = (newPage: number) => {
@@ -144,49 +144,62 @@ export function CitiesTab() {
             </TableRow>
           ) : (
             // --- Success State ---
-            cities.map(item => (
-              <TableRow key={item.id}>
-                <TableCell className="font-medium">{item.name}</TableCell>
-                <TableCell>{item.state_name}</TableCell> {/* <-- Use joined field */}
-                <TableCell>{item.country_name}</TableCell> {/* <-- Use joined field */}
-                <TableCell>
-                  <span
-                    className={cn(
-                      'rounded-full px-2.5 py-0.5 text-xs font-medium',
-                      item.status === 'active'
-                        ? 'bg-success/10 text-success'
-                        : 'bg-muted/60 text-muted-foreground',
-                    )}
-                  >
-                    {item.status === 'active' ? 'Active' : 'Inactive'}
-                  </span>
-                </TableCell>
-                <TableCell className="text-right">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        justify="center"
+            cities.map(item => {
+              const effectiveActive = item.status_effective === 'active';
+              const overridden = item.status !== item.status_effective;
+              return (
+                <TableRow key={item.id}>
+                  <TableCell className="font-medium">{item.name}</TableCell>
+                  <TableCell>{item.state_name}</TableCell>
+                  <TableCell>{item.country_name}</TableCell>
+                  <TableCell>
+                    <div>
+                      <span
+                        className={cn(
+                          'rounded-full px-2.5 py-0.5 text-xs font-medium',
+                          effectiveActive
+                            ? 'bg-success/10 text-success'
+                            : 'bg-muted/60 text-muted-foreground',
+                        )}
                       >
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => handleOpenEdit(item)}>Edit</DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => handleDelete(item.id)}
-                        disabled={deleteMutation.isPending}
-                        className="text-red-600 focus:text-red-600"
-                      >
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-              </TableRow>
-            ))
+                        {effectiveActive ? 'Active' : 'Inactive'}
+                      </span>
+                      {overridden && (
+                        <span className="text-muted-foreground text-xs">
+                          Admin set: {item.status}
+                        </span>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          justify="center"
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleOpenEdit(item)}>
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleDelete(item.id)}
+                          disabled={deleteMutation.isPending}
+                          className="text-red-600 focus:text-red-600"
+                        >
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              );
+            })
           )}
         </TableBody>
       </Table>

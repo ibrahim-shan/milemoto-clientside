@@ -15,10 +15,93 @@ import type {
   UpdateStateDto,
 } from '@milemoto/types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 
 import { del, get, post } from '@/lib/api';
 import { getAccessToken } from '@/lib/authStorage';
-import { useToast } from '@/ui/use-toast';
+
+type PaginatedSnapshot<T> = Array<{
+  queryKey: readonly unknown[];
+  data: PaginatedResponse<T> | undefined;
+}>;
+
+type DropdownSnapshot<T> = Array<{
+  queryKey: readonly unknown[];
+  data: { items: T[] } | undefined;
+}>;
+
+type DeleteCountryContext = {
+  paginated: PaginatedSnapshot<Country>;
+  dropdown: DropdownSnapshot<CountryDropdownItem>;
+};
+
+type DeleteStateContext = {
+  paginated: PaginatedSnapshot<State>;
+  dropdown: DropdownSnapshot<StateDropdownItem>;
+};
+
+type DeleteCityContext = {
+  paginated: PaginatedSnapshot<City>;
+};
+
+function sameId(a: unknown, b: unknown) {
+  const numA = Number(a);
+  const numB = Number(b);
+  return !Number.isNaN(numA) && !Number.isNaN(numB) && numA === numB;
+}
+
+function removeFromPaginatedCache<T extends { id: number | string }>(
+  queryClient: ReturnType<typeof useQueryClient>,
+  prefix: readonly unknown[],
+  id: number,
+): PaginatedSnapshot<T> {
+  const snapshots = queryClient
+    .getQueriesData<PaginatedResponse<T>>({ queryKey: prefix })
+    .map(([queryKey, data]) => ({ queryKey, data }));
+
+  snapshots.forEach(({ queryKey, data }) => {
+    if (!data) return;
+    if (!data.items.some((item: T) => sameId(item.id, id))) return;
+    queryClient.setQueryData<PaginatedResponse<T>>(queryKey, {
+      ...data,
+      items: data.items.filter((item: T) => !sameId(item.id, id)),
+      totalCount: Math.max(0, data.totalCount - 1),
+    });
+  });
+
+  return snapshots;
+}
+
+function removeFromDropdownCache<T extends { id: number | string }>(
+  queryClient: ReturnType<typeof useQueryClient>,
+  prefix: readonly unknown[],
+  id: number,
+): DropdownSnapshot<T> {
+  const snapshots = queryClient
+    .getQueriesData<{ items: T[] }>({ queryKey: prefix })
+    .map(([queryKey, data]) => ({ queryKey, data }));
+
+  snapshots.forEach(({ queryKey, data }) => {
+    if (!data) return;
+    if (!data.items.some((item: T) => sameId(item.id, id))) return;
+    queryClient.setQueryData(queryKey, {
+      ...data,
+      items: data.items.filter((item: T) => !sameId(item.id, id)),
+    });
+  });
+
+  return snapshots;
+}
+
+function restoreSnapshots<T>(
+  queryClient: ReturnType<typeof useQueryClient>,
+  snapshots: PaginatedSnapshot<T> | DropdownSnapshot<T> | undefined,
+) {
+  if (!snapshots) return;
+  snapshots.forEach(({ queryKey, data }) => {
+    queryClient.setQueryData(queryKey, data);
+  });
+}
 
 function authz(): Record<string, string> {
   if (typeof window === 'undefined') return {};
@@ -49,10 +132,12 @@ const listCountries = (params: { search: string; page: number; limit: number }) 
     headers: authz(),
   });
 };
-const listAllCountries = () =>
-  get<{ items: CountryDropdownItem[] }>(`${API_BASE}/countries/all`, {
+const listAllCountries = (includeInactive = false) => {
+  const query = includeInactive ? '?includeInactive=1' : '';
+  return get<{ items: CountryDropdownItem[] }>(`${API_BASE}/countries/all${query}`, {
     headers: authz(),
   });
+};
 // --- FIX: Add headers and use correct DTO ---
 const createCountry = (data: CreateCountryOutputDto) =>
   post<Country>(`${API_BASE}/countries`, data, { headers: authz() });
@@ -113,61 +198,115 @@ export const useGetCountries = (params: { search: string; page: number; limit: n
   });
 };
 
-export const useGetAllCountries = () => {
+export const useGetAllCountries = (includeInactive = false) => {
   return useQuery({
-    queryKey: locationKeys.dropdown('countries'),
-    queryFn: listAllCountries,
+    queryKey: [...locationKeys.dropdown('countries'), includeInactive ? 'all' : 'active'],
+    queryFn: () => listAllCountries(includeInactive),
     staleTime: 1000 * 60 * 5,
   });
 };
 
 export const useCreateCountry = () => {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
   return useMutation({
     // --- FIX: mutationFn receives OutputDto from form ---
-    mutationFn: (data: CreateCountryOutputDto) => createCountry(data),
-    onSuccess: () => {
-      toast({ title: 'Success', description: 'Country created successfully.' });
-      return queryClient.invalidateQueries({
-        queryKey: locationKeys.lists(),
+    mutationFn: async (data: CreateCountryOutputDto) => {
+      const promise = createCountry(data);
+      toast.promise(promise, {
+        loading: 'Creating country...',
+        success: 'Country created successfully.',
+        error: (err: Error & { code?: string; message?: string }) =>
+          err.code === 'DuplicateCountry'
+            ? 'Country code already exists.'
+            : err.message || 'Failed to create country.',
       });
+      return await promise;
     },
-    onError: err => toast({ variant: 'destructive', title: 'Error', description: err.message }),
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: locationKeys.lists(), type: 'active' }),
+        queryClient.invalidateQueries({ queryKey: locationKeys.dropdowns(), exact: false }),
+        queryClient.invalidateQueries({
+          queryKey: locationKeys.dropdown('countries'),
+          exact: false,
+        }),
+      ]),
   });
 };
 
 export const useUpdateCountry = () => {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
   return useMutation({
     // --- FIX: This function signature matches what we call in the dialog ---
-    mutationFn: (data: UpdateCountryDto & { id: number }) => updateCountry(data),
-    onSuccess: () => {
-      toast({ title: 'Success', description: 'Country updated successfully.' });
-      return Promise.all([
-        queryClient.invalidateQueries({ queryKey: locationKeys.lists() }),
-        queryClient.invalidateQueries({ queryKey: locationKeys.dropdowns() }),
-      ]);
+    mutationFn: async (data: UpdateCountryDto & { id: number }) => {
+      const promise = updateCountry(data);
+      toast.promise(promise, {
+        loading: 'Updating country...',
+        success: 'Country updated successfully.',
+        error: (err: Error & { code?: string; message?: string }) =>
+          err.code === 'DuplicateCountry'
+            ? 'Country code already exists.'
+            : err.message || 'Failed to update country.',
+      });
+      return await promise;
     },
-    onError: err => toast({ variant: 'destructive', title: 'Error', description: err.message }),
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: locationKeys.lists(), type: 'active' }),
+        queryClient.invalidateQueries({ queryKey: locationKeys.dropdowns(), exact: false }),
+        queryClient.invalidateQueries({
+          queryKey: locationKeys.dropdown('countries'),
+          exact: false,
+        }),
+      ]),
   });
 };
 
 export const useDeleteCountry = () => {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
   return useMutation({
     // --- FIX: This signature is simple and correct ---
-    mutationFn: (id: number) => deleteCountry(id),
-    onSuccess: () => {
-      toast({ title: 'Success', description: 'Country deleted.' });
-      return queryClient.invalidateQueries({ queryKey: locationKeys.all });
+    mutationFn: async (id: number) => {
+      const promise = deleteCountry(id);
+      toast.promise(promise, {
+        loading: 'Deleting country...',
+        success: 'Country deleted.',
+        error: (err: Error & { code?: string; message?: string }) =>
+          err.code === 'DeleteFailed'
+            ? err.message || 'Country cannot be deleted.'
+            : err.message || 'Failed to delete country.',
+      });
+      return await promise;
     },
-    onError: (err: Error & { code?: string }) => {
-      const description = err.code === 'DeleteFailed' ? err.message : 'An error occurred.';
-      toast({ variant: 'destructive', title: 'Error', description });
+    onMutate: async (id: number): Promise<DeleteCountryContext> => {
+      await queryClient.cancelQueries({ queryKey: [...locationKeys.lists(), 'countries'] });
+      const paginated = removeFromPaginatedCache<Country>(
+        queryClient,
+        [...locationKeys.lists(), 'countries'],
+        id,
+      );
+      const dropdown = removeFromDropdownCache<CountryDropdownItem>(
+        queryClient,
+        locationKeys.dropdown('countries'),
+        id,
+      );
+      return { paginated, dropdown };
     },
+    onError: (_err, _id, context) => {
+      const ctx = context as DeleteCountryContext | undefined;
+      if (!ctx) return;
+      restoreSnapshots(queryClient, ctx.paginated);
+      restoreSnapshots(queryClient, ctx.dropdown);
+    },
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: locationKeys.all, type: 'active' }),
+        queryClient.invalidateQueries({ queryKey: locationKeys.dropdowns(), exact: false }),
+        queryClient.invalidateQueries({
+          queryKey: locationKeys.dropdown('countries'),
+          exact: false,
+        }),
+      ]),
   });
 };
 
@@ -191,50 +330,97 @@ export const useGetAllStates = () => {
 
 export const useCreateState = () => {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
   return useMutation({
     // --- FIX: mutationFn receives OutputDto from form ---
-    mutationFn: (data: CreateStateOutputDto) => createState(data),
-    onSuccess: () => {
-      toast({ title: 'Success', description: 'State created successfully.' });
-      return Promise.all([
-        queryClient.invalidateQueries({ queryKey: locationKeys.lists() }),
+    mutationFn: async (data: CreateStateOutputDto) => {
+      const promise = createState(data);
+      toast.promise(promise, {
+        loading: 'Creating state...',
+        success: 'State created successfully.',
+        error: (err: Error & { code?: string; message?: string }) => {
+          if (err.code === 'DuplicateState') {
+            return 'A state with this name already exists for the selected country.';
+          }
+          if (err.code === 'ParentInactive') {
+            return err.message || 'Cannot activate a state while its country is inactive.';
+          }
+          return err.message || 'Failed to create state.';
+        },
+      });
+      return await promise;
+    },
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: locationKeys.lists(), type: 'active' }),
         queryClient.invalidateQueries({
           queryKey: locationKeys.dropdown('states'),
+          type: 'active',
         }),
-      ]);
-    },
-    onError: err => toast({ variant: 'destructive', title: 'Error', description: err.message }),
+      ]),
   });
 };
 
 export const useUpdateState = () => {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
   return useMutation({
     // --- FIX: This function signature matches what we call in the dialog ---
-    mutationFn: (data: UpdateStateDto & { id: number }) => updateState(data),
-    onSuccess: () => {
-      toast({ title: 'Success', description: 'State updated successfully.' });
-      return queryClient.invalidateQueries({ queryKey: locationKeys.all });
+    mutationFn: async (data: UpdateStateDto & { id: number }) => {
+      const promise = updateState(data);
+      toast.promise(promise, {
+        loading: 'Updating state...',
+        success: 'State updated successfully.',
+        error: (err: Error & { code?: string; message?: string }) => {
+          if (err.code === 'DuplicateState') {
+            return 'A state with this name already exists for the selected country.';
+          }
+          if (err.code === 'ParentInactive') {
+            return err.message || 'Cannot activate a state while its country is inactive.';
+          }
+          return err.message || 'Failed to update state.';
+        },
+      });
+      return await promise;
     },
-    onError: err => toast({ variant: 'destructive', title: 'Error', description: err.message }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: locationKeys.all, type: 'active' }),
   });
 };
 
 export const useDeleteState = () => {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
   return useMutation({
-    mutationFn: (id: number) => deleteState(id),
-    onSuccess: () => {
-      toast({ title: 'Success', description: 'State deleted.' });
-      return queryClient.invalidateQueries({ queryKey: locationKeys.all });
+    mutationFn: async (id: number) => {
+      const promise = deleteState(id);
+      toast.promise(promise, {
+        loading: 'Deleting state...',
+        success: 'State deleted.',
+        error: (err: Error & { code?: string; message?: string }) =>
+          err.code === 'DeleteFailed'
+            ? err.message || 'State cannot be deleted.'
+            : err.message || 'Failed to delete state.',
+      });
+      return await promise;
     },
-    onError: (err: Error & { code?: string }) => {
-      const description = err.code === 'DeleteFailed' ? err.message : 'An error occurred.';
-      toast({ variant: 'destructive', title: 'Error', description });
+    onMutate: async (id: number): Promise<DeleteStateContext> => {
+      await queryClient.cancelQueries({ queryKey: [...locationKeys.lists(), 'states'] });
+      const paginated = removeFromPaginatedCache<State>(
+        queryClient,
+        [...locationKeys.lists(), 'states'],
+        id,
+      );
+      const dropdown = removeFromDropdownCache<StateDropdownItem>(
+        queryClient,
+        locationKeys.dropdown('states'),
+        id,
+      );
+      return { paginated, dropdown };
     },
+    onError: (_err, _id, context) => {
+      const ctx = context as DeleteStateContext | undefined;
+      if (!ctx) return;
+      restoreSnapshots(queryClient, ctx.paginated);
+      restoreSnapshots(queryClient, ctx.dropdown);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: locationKeys.all, type: 'active' }),
   });
 };
 
@@ -250,43 +436,86 @@ export const useGetCities = (params: { search: string; page: number; limit: numb
 
 export const useCreateCity = () => {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
   return useMutation({
     // --- FIX: mutationFn receives OutputDto from form ---
-    mutationFn: (data: CreateCityOutputDto) => createCity(data),
-    onSuccess: () => {
-      toast({ title: 'Success', description: 'City created successfully.' });
-      return queryClient.invalidateQueries({
-        queryKey: locationKeys.lists(),
+    mutationFn: async (data: CreateCityOutputDto) => {
+      const promise = createCity(data);
+      toast.promise(promise, {
+        loading: 'Creating city...',
+        success: 'City created successfully.',
+        error: (err: Error & { code?: string; message?: string }) => {
+          if (err.code === 'DuplicateCity') {
+            return 'A city with this name already exists for the selected state.';
+          }
+          if (err.code === 'ParentInactive') {
+            return err.message || 'Cannot activate a city while its state or country is inactive.';
+          }
+          return err.message || 'Failed to create city.';
+        },
       });
+      return await promise;
     },
-    onError: err => toast({ variant: 'destructive', title: 'Error', description: err.message }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: locationKeys.lists(), type: 'active' }),
   });
 };
 
 export const useUpdateCity = () => {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
   return useMutation({
     // --- FIX: This function signature matches what we call in the dialog ---
-    mutationFn: (data: UpdateCityDto & { id: number }) => updateCity(data),
-    onSuccess: () => {
-      toast({ title: 'Success', description: 'City updated successfully.' });
-      return queryClient.invalidateQueries({ queryKey: locationKeys.lists() });
+    mutationFn: async (data: UpdateCityDto & { id: number }) => {
+      const promise = updateCity(data);
+      toast.promise(promise, {
+        loading: 'Updating city...',
+        success: 'City updated successfully.',
+        error: (err: Error & { code?: string; message?: string }) => {
+          if (err.code === 'DuplicateCity') {
+            return 'A city with this name already exists for the selected state.';
+          }
+          if (err.code === 'ParentInactive') {
+            return err.message || 'Cannot activate a city while its state or country is inactive.';
+          }
+          return err.message || 'Failed to update city.';
+        },
+      });
+      return await promise;
     },
-    onError: err => toast({ variant: 'destructive', title: 'Error', description: err.message }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: locationKeys.lists(), type: 'active' }),
   });
 };
 
 export const useDeleteCity = () => {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
   return useMutation({
-    mutationFn: (id: number) => deleteCity(id),
-    onSuccess: () => {
-      toast({ title: 'Success', description: 'City deleted.' });
-      return queryClient.invalidateQueries({ queryKey: locationKeys.lists() });
+    mutationFn: async (id: number) => {
+      const promise = deleteCity(id);
+      toast.promise(promise, {
+        loading: 'Deleting city...',
+        success: 'City deleted.',
+        error: (err: Error & { code?: string; message?: string }) =>
+          err.code === 'DeleteFailed'
+            ? err.message || 'City cannot be deleted.'
+            : err.message || 'Failed to delete city.',
+      });
+      return await promise;
     },
-    onError: err => toast({ variant: 'destructive', title: 'Error', description: err.message }),
+    onMutate: async (id: number): Promise<DeleteCityContext> => {
+      await queryClient.cancelQueries({ queryKey: [...locationKeys.lists(), 'cities'] });
+      const paginated = removeFromPaginatedCache<City>(
+        queryClient,
+        [...locationKeys.lists(), 'cities'],
+        id,
+      );
+      return { paginated };
+    },
+    onError: (_err, _id, context) => {
+      const ctx = context as DeleteCityContext | undefined;
+      if (!ctx) return;
+      restoreSnapshots(queryClient, ctx.paginated);
+    },
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: locationKeys.lists(), type: 'active' }),
   });
 };

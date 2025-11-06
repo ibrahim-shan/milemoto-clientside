@@ -58,7 +58,7 @@ export function CountriesTab() {
   };
 
   // --- Render Logic ---
-  const countries = data?.items || [];
+  const countries: Country[] = data?.items ?? [];
   const totalCount = data?.totalCount || 0;
 
   const handlePageChange = (newPage: number) => {
